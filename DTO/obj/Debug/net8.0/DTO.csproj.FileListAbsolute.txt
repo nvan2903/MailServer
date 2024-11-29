@@ -1,0 +1,22 @@
+D:\Source C Sharp\MailServer\DTO\bin\Debug\net8.0\DTO.deps.json
+D:\Source C Sharp\MailServer\DTO\bin\Debug\net8.0\DTO.dll
+D:\Source C Sharp\MailServer\DTO\bin\Debug\net8.0\DTO.pdb
+D:\Source C Sharp\MailServer\DTO\obj\Debug\net8.0\DTO.GeneratedMSBuildEditorConfig.editorconfig
+D:\Source C Sharp\MailServer\DTO\obj\Debug\net8.0\DTO.AssemblyInfoInputs.cache
+D:\Source C Sharp\MailServer\DTO\obj\Debug\net8.0\DTO.AssemblyInfo.cs
+D:\Source C Sharp\MailServer\DTO\obj\Debug\net8.0\DTO.csproj.CoreCompileInputs.cache
+D:\Source C Sharp\MailServer\DTO\obj\Debug\net8.0\DTO.dll
+D:\Source C Sharp\MailServer\DTO\obj\Debug\net8.0\refint\DTO.dll
+D:\Source C Sharp\MailServer\DTO\obj\Debug\net8.0\DTO.pdb
+D:\Source C Sharp\MailServer\DTO\obj\Debug\net8.0\ref\DTO.dll
+D:\Source-CSharp\MailServer\DTO\bin\Debug\net8.0\DTO.deps.json
+D:\Source-CSharp\MailServer\DTO\bin\Debug\net8.0\DTO.dll
+D:\Source-CSharp\MailServer\DTO\bin\Debug\net8.0\DTO.pdb
+D:\Source-CSharp\MailServer\DTO\obj\Debug\net8.0\DTO.GeneratedMSBuildEditorConfig.editorconfig
+D:\Source-CSharp\MailServer\DTO\obj\Debug\net8.0\DTO.AssemblyInfoInputs.cache
+D:\Source-CSharp\MailServer\DTO\obj\Debug\net8.0\DTO.AssemblyInfo.cs
+D:\Source-CSharp\MailServer\DTO\obj\Debug\net8.0\DTO.csproj.CoreCompileInputs.cache
+D:\Source-CSharp\MailServer\DTO\obj\Debug\net8.0\DTO.dll
+D:\Source-CSharp\MailServer\DTO\obj\Debug\net8.0\refint\DTO.dll
+D:\Source-CSharp\MailServer\DTO\obj\Debug\net8.0\DTO.pdb
+D:\Source-CSharp\MailServer\DTO\obj\Debug\net8.0\ref\DTO.dll

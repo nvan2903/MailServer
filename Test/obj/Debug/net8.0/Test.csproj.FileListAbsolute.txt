@@ -1,0 +1,63 @@
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\Test.exe
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\Test.deps.json
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\Test.runtimeconfig.json
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\Test.dll
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\Test.pdb
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\System.Data.SqlClient.dll
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\runtimes\win-arm64\native\sni.dll
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\runtimes\win-x64\native\sni.dll
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\runtimes\win-x86\native\sni.dll
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\runtimes\unix\lib\netcoreapp2.1\System.Data.SqlClient.dll
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\runtimes\win\lib\netcoreapp2.1\System.Data.SqlClient.dll
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\DAL.dll
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\DTO.dll
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\DAL.pdb
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\DTO.pdb
+D:\Source C Sharp\MailServer\Test\obj\Debug\net8.0\Test.csproj.AssemblyReference.cache
+D:\Source C Sharp\MailServer\Test\obj\Debug\net8.0\Test.GeneratedMSBuildEditorConfig.editorconfig
+D:\Source C Sharp\MailServer\Test\obj\Debug\net8.0\Test.AssemblyInfoInputs.cache
+D:\Source C Sharp\MailServer\Test\obj\Debug\net8.0\Test.AssemblyInfo.cs
+D:\Source C Sharp\MailServer\Test\obj\Debug\net8.0\Test.csproj.CoreCompileInputs.cache
+D:\Source C Sharp\MailServer\Test\obj\Debug\net8.0\Test.csproj.Up2Date
+D:\Source C Sharp\MailServer\Test\obj\Debug\net8.0\Test.dll
+D:\Source C Sharp\MailServer\Test\obj\Debug\net8.0\refint\Test.dll
+D:\Source C Sharp\MailServer\Test\obj\Debug\net8.0\Test.pdb
+D:\Source C Sharp\MailServer\Test\obj\Debug\net8.0\Test.genruntimeconfig.cache
+D:\Source C Sharp\MailServer\Test\obj\Debug\net8.0\ref\Test.dll
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\DotNetEnv.dll
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\Microsoft.Extensions.Configuration.dll
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\Microsoft.Extensions.Configuration.Abstractions.dll
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\Microsoft.Extensions.Primitives.dll
+D:\Source C Sharp\MailServer\Test\bin\Debug\net8.0\Sprache.dll
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\Test.exe
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\Test.deps.json
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\Test.runtimeconfig.json
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\Test.dll
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\Test.pdb
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\DotNetEnv.dll
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\Microsoft.Extensions.Configuration.dll
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\Microsoft.Extensions.Configuration.Abstractions.dll
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\Microsoft.Extensions.Primitives.dll
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\Sprache.dll
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\System.Data.SqlClient.dll
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\runtimes\win-arm64\native\sni.dll
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\runtimes\win-x64\native\sni.dll
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\runtimes\win-x86\native\sni.dll
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\runtimes\unix\lib\netcoreapp2.1\System.Data.SqlClient.dll
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\runtimes\win\lib\netcoreapp2.1\System.Data.SqlClient.dll
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\DAL.dll
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\DTO.dll
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\DAL.pdb
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\DTO.pdb
+D:\Source-CSharp\MailServer\Test\obj\Debug\net8.0\Test.csproj.AssemblyReference.cache
+D:\Source-CSharp\MailServer\Test\obj\Debug\net8.0\Test.GeneratedMSBuildEditorConfig.editorconfig
+D:\Source-CSharp\MailServer\Test\obj\Debug\net8.0\Test.AssemblyInfoInputs.cache
+D:\Source-CSharp\MailServer\Test\obj\Debug\net8.0\Test.AssemblyInfo.cs
+D:\Source-CSharp\MailServer\Test\obj\Debug\net8.0\Test.csproj.CoreCompileInputs.cache
+D:\Source-CSharp\MailServer\Test\obj\Debug\net8.0\Test.csproj.Up2Date
+D:\Source-CSharp\MailServer\Test\obj\Debug\net8.0\Test.dll
+D:\Source-CSharp\MailServer\Test\obj\Debug\net8.0\refint\Test.dll
+D:\Source-CSharp\MailServer\Test\obj\Debug\net8.0\Test.pdb
+D:\Source-CSharp\MailServer\Test\obj\Debug\net8.0\Test.genruntimeconfig.cache
+D:\Source-CSharp\MailServer\Test\obj\Debug\net8.0\ref\Test.dll
+D:\Source-CSharp\MailServer\Test\bin\Debug\net8.0\Newtonsoft.Json.dll

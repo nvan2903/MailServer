@@ -1,0 +1,22 @@
+D:\Source C Sharp\MailServer\BLL\obj\Debug\net8.0\BLL.csproj.AssemblyReference.cache
+D:\Source C Sharp\MailServer\BLL\obj\Debug\net8.0\BLL.GeneratedMSBuildEditorConfig.editorconfig
+D:\Source C Sharp\MailServer\BLL\obj\Debug\net8.0\BLL.AssemblyInfoInputs.cache
+D:\Source C Sharp\MailServer\BLL\obj\Debug\net8.0\BLL.AssemblyInfo.cs
+D:\Source C Sharp\MailServer\BLL\obj\Debug\net8.0\BLL.csproj.CoreCompileInputs.cache
+D:\Source-CSharp\MailServer\BLL\bin\Debug\net8.0\BLL.deps.json
+D:\Source-CSharp\MailServer\BLL\bin\Debug\net8.0\BLL.dll
+D:\Source-CSharp\MailServer\BLL\bin\Debug\net8.0\BLL.pdb
+D:\Source-CSharp\MailServer\BLL\bin\Debug\net8.0\DAL.dll
+D:\Source-CSharp\MailServer\BLL\bin\Debug\net8.0\DTO.dll
+D:\Source-CSharp\MailServer\BLL\bin\Debug\net8.0\DAL.pdb
+D:\Source-CSharp\MailServer\BLL\bin\Debug\net8.0\DTO.pdb
+D:\Source-CSharp\MailServer\BLL\obj\Debug\net8.0\BLL.csproj.AssemblyReference.cache
+D:\Source-CSharp\MailServer\BLL\obj\Debug\net8.0\BLL.GeneratedMSBuildEditorConfig.editorconfig
+D:\Source-CSharp\MailServer\BLL\obj\Debug\net8.0\BLL.AssemblyInfoInputs.cache
+D:\Source-CSharp\MailServer\BLL\obj\Debug\net8.0\BLL.AssemblyInfo.cs
+D:\Source-CSharp\MailServer\BLL\obj\Debug\net8.0\BLL.csproj.CoreCompileInputs.cache
+D:\Source-CSharp\MailServer\BLL\obj\Debug\net8.0\BLL.csproj.Up2Date
+D:\Source-CSharp\MailServer\BLL\obj\Debug\net8.0\BLL.dll
+D:\Source-CSharp\MailServer\BLL\obj\Debug\net8.0\refint\BLL.dll
+D:\Source-CSharp\MailServer\BLL\obj\Debug\net8.0\BLL.pdb
+D:\Source-CSharp\MailServer\BLL\obj\Debug\net8.0\ref\BLL.dll
