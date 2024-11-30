@@ -28,3 +28,4 @@ D:\Source-CSharp\MailServer\DAL\obj\Debug\net8.0\DAL.dll
 D:\Source-CSharp\MailServer\DAL\obj\Debug\net8.0\refint\DAL.dll
 D:\Source-CSharp\MailServer\DAL\obj\Debug\net8.0\DAL.pdb
 D:\Source-CSharp\MailServer\DAL\obj\Debug\net8.0\ref\DAL.dll
+D:\Source-CSharp\MailServer\DAL\obj\Debug\net8.0\DAL.sourcelink.json

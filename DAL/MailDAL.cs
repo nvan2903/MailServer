@@ -9,7 +9,7 @@ namespace DAL
     {
         public bool MarkMailAsDeleted(int mailId, string owner)
         {
-            string sql = "UPDATE mail SET deleted_at = CURRENT_TIMESTAMP WHERE id = @MailId AND owner = @Owner";
+            string sql = "UPDATE mail SET deleted_at = CURRENT_TIMESTAMP WHERE id = @MailId AND owner = N@Owner";
             try
             {
                 using (SqlCommand cmd = new SqlCommand(sql, conn))
@@ -18,7 +18,6 @@ namespace DAL
                     cmd.Parameters.AddWithValue("@Owner", owner);
                     OpenConnection();
                     int rowsAffected = cmd.ExecuteNonQuery();
-                    CloseConnection();
                     return rowsAffected > 0;
                 }
             }
@@ -27,11 +26,15 @@ namespace DAL
                 Console.WriteLine("Error in MarkMailAsDeleted: " + ex.Message);
                 return false;
             }
+            finally
+            {
+                CloseConnection();
+            }
         }
 
         public bool DeleteMailPermanently(int mailId, string owner)
         {
-            string sql = "DELETE FROM mail WHERE id = @MailId AND owner = @Owner";
+            string sql = "DELETE FROM mail WHERE id = @MailId AND owner = N@Owner";
             try
             {
                 using (SqlCommand cmd = new SqlCommand(sql, conn))
@@ -40,7 +43,6 @@ namespace DAL
                     cmd.Parameters.AddWithValue("@Owner", owner);
                     OpenConnection();
                     int rowsAffected = cmd.ExecuteNonQuery();
-                    CloseConnection();
                     return rowsAffected > 0;
                 }
             }
@@ -48,6 +50,10 @@ namespace DAL
             {
                 Console.WriteLine("Error in DeleteMailPermanently: " + ex.Message);
                 return false;
+            }
+            finally
+            {
+                CloseConnection();
             }
         }
 
@@ -62,7 +68,6 @@ namespace DAL
                     cmd.Parameters.AddWithValue("@IsRead", isRead ? 1 : 0);
                     OpenConnection();
                     int rowsAffected = cmd.ExecuteNonQuery();
-                    CloseConnection();
                     return rowsAffected > 0;
                 }
             }
@@ -71,10 +76,15 @@ namespace DAL
                 Console.WriteLine("Error in UpdateMailReadStatus: " + ex.Message);
                 return false;
             }
+            finally
+            {
+                CloseConnection();
+            }
         }
+
         public Mail GetMailById(int mailId, string owner)
         {
-            string sql = "SELECT created_at, sender, receiver, owner, is_read, attachment, subject, content, reply, deleted_at FROM mail WHERE id = @MailId AND owner = @Owner";
+            string sql = "SELECT created_at, sender, receiver, owner, is_read, attachment, subject, content, reply, deleted_at FROM mail WHERE id = @MailId AND owner = N@Owner";
             try
             {
                 using (SqlCommand cmd = new SqlCommand(sql, conn))
@@ -86,7 +96,7 @@ namespace DAL
                     {
                         if (reader.Read())
                         {
-                            Mail mail = new Mail
+                            return new Mail
                             {
                                 Id = mailId,
                                 CreatedAt = Convert.ToDateTime(reader["created_at"]),
@@ -100,24 +110,25 @@ namespace DAL
                                 Reply = reader["reply"] == DBNull.Value ? 0 : Convert.ToInt32(reader["reply"]),
                                 DeletedAt = reader["deleted_at"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["deleted_at"])
                             };
-                            CloseConnection();
-                            return mail;
                         }
                     }
-                    CloseConnection();
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Error in GetMailById: " + ex.Message);
             }
-            return new Mail(); // Return a new Mail object instead of null
+            finally
+            {
+                CloseConnection();
+            }
+            return new Mail();
         }
 
         public bool InsertMail(Mail mail)
         {
             string sql = "INSERT INTO mail (created_at, sender, receiver, owner, is_read, attachment, subject, content, reply, deleted_at) " +
-                         "VALUES (@CreatedAt, @Sender, @Receiver, @Owner, @IsRead, @Attachment, @Subject, @Content, @Reply, NULL)";
+                         "VALUES (@CreatedAt, @Sender, @Receiver, N@Owner, @IsRead, @Attachment, @Subject, @Content, @Reply, NULL)";
             try
             {
                 using (SqlCommand cmd = new SqlCommand(sql, conn))
@@ -127,31 +138,13 @@ namespace DAL
                     cmd.Parameters.AddWithValue("@Receiver", mail.Receiver);
                     cmd.Parameters.AddWithValue("@Owner", mail.Owner);
                     cmd.Parameters.AddWithValue("@IsRead", mail.IsRead ? 1 : 0);
-
-                    // Handle attachment
-                    if (string.IsNullOrEmpty(mail.Attachment))
-                        cmd.Parameters.AddWithValue("@Attachment", DBNull.Value);
-                    else
-                        cmd.Parameters.AddWithValue("@Attachment", mail.Attachment);
-
-                    // Handle subject
-                    if (string.IsNullOrEmpty(mail.Subject))
-                        cmd.Parameters.AddWithValue("@Subject", DBNull.Value);
-                    else
-                        cmd.Parameters.AddWithValue("@Subject", mail.Subject);
-
-                    // Set the content path
+                    cmd.Parameters.AddWithValue("@Attachment", string.IsNullOrEmpty(mail.Attachment) ? DBNull.Value : mail.Attachment);
+                    cmd.Parameters.AddWithValue("@Subject", string.IsNullOrEmpty(mail.Subject) ? DBNull.Value : mail.Subject);
                     cmd.Parameters.AddWithValue("@Content", mail.Content);
-
-                    // Handle reply ID (foreign key)
-                    if (mail.Reply == 0)
-                        cmd.Parameters.AddWithValue("@Reply", DBNull.Value);
-                    else
-                        cmd.Parameters.AddWithValue("@Reply", mail.Reply);
+                    cmd.Parameters.AddWithValue("@Reply", mail.Reply == 0 ? DBNull.Value : mail.Reply);
 
                     OpenConnection();
                     int rowsAffected = cmd.ExecuteNonQuery();
-                    CloseConnection();
                     return rowsAffected > 0;
                 }
             }
@@ -160,6 +153,128 @@ namespace DAL
                 Console.WriteLine("Error in InsertMail: " + ex.Message);
                 return false;
             }
+            finally
+            {
+                CloseConnection();
+            }
+        }
+
+       
+
+        // method to get inbox mails
+        public DataTable GetInboxMails(string currentUser)
+        {
+            string sql = "SELECT id, created_at, sender, receiver, is_read, attachment, subject, content, reply FROM mail WHERE receiver = @CurrentUser AND deleted_at IS NULL";
+            try
+            {
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@CurrentUser", currentUser);
+                    OpenConnection();
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
+                    {
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+                        return dt;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in GetInboxMails: " + ex.Message);
+            }
+            finally
+            {
+                CloseConnection();
+            }
+            return new DataTable();
+        }
+
+        // method to get sent mails
+        public DataTable GetSentMails(string currentUser)
+        {
+            string sql = "SELECT id, created_at, sender, receiver, is_read, attachment, subject, content, reply FROM mail WHERE sender = @CurrentUser AND deleted_at IS NULL";
+            try
+            {
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@CurrentUser", currentUser);
+                    OpenConnection();
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
+                    {
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+                        return dt;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in GetSentMails: " + ex.Message);
+            }
+            finally
+            {
+                CloseConnection();
+            }
+            return new DataTable();
+        }
+
+        // method to get deleted mails
+        public DataTable GetDeletedMails(string currentUser)
+        {
+            string sql = "SELECT id, created_at, sender, receiver, is_read, attachment, subject, content, reply FROM mail WHERE owner = @CurrentUser AND deleted_at IS NOT NULL";
+            try
+            {
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@CurrentUser", currentUser);
+                    OpenConnection();
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
+                    {
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+                        return dt;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in GetDeletedMails: " + ex.Message);
+            }
+            finally
+            {
+                CloseConnection();
+            }
+            return new DataTable();
+        }
+
+        // method to get all mails
+        public DataTable GetAllMails(string currentUser)
+        {
+            string sql = "SELECT id, created_at, sender, receiver, is_read, attachment, subject, content, reply FROM mail WHERE sender = @CurrentUser or receiver = @CurrentUser";
+            try
+            {
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@CurrentUser", currentUser);
+                    OpenConnection();
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
+                    {
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+                        return dt;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in GetAllMails: " + ex.Message);
+            }
+            finally
+            {
+                CloseConnection();
+            }
+            return new DataTable();
         }
     }
 }

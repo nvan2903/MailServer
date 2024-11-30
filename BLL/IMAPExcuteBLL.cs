@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Net.Sockets;
 using System.Text;
@@ -15,10 +16,10 @@ namespace BLL
         private readonly Action<string> _logAction;
         private readonly MailDAL _mailDAL;
         private readonly AccountDAL _accountDAL;
-        private string _currentUser;
+        private Account _currentUser;
         private bool _isAuthenticated;
-        private readonly string _baseDir="";
-        private readonly string _defaultDomain="";
+        private readonly string _baseDir;
+        private readonly string _defaultDomain;
 
         public IMAPExecuteBLL(TcpClient client, Action<string> logAction, string baseDir, string defaultDomain)
         {
@@ -26,7 +27,7 @@ namespace BLL
             _logAction = logAction ?? throw new ArgumentNullException(nameof(logAction));
             _mailDAL = new MailDAL();
             _accountDAL = new AccountDAL();
-            _currentUser = string.Empty;
+            _currentUser = null;
             _isAuthenticated = false;
             _baseDir = baseDir ?? throw new ArgumentNullException(nameof(baseDir));
             _defaultDomain = defaultDomain ?? throw new ArgumentNullException(nameof(defaultDomain));
@@ -34,45 +35,48 @@ namespace BLL
 
         public void Start()
         {
-            try
+            using (_client)
             {
-                using NetworkStream stream = _client.GetStream();
-                using StreamReader reader = new(stream, Encoding.UTF8); // Đọc với UTF-8
-                using StreamWriter writer = new(stream, Encoding.UTF8) { AutoFlush = true }; // Ghi với UTF-8
-
-
-                Log("Connection established.");
-                writer.WriteLine("* OK IMAP Server Ready");
-                Log("* OK IMAP Server Ready");
-
-                string line;
-                while ((line = reader.ReadLine()) != null)
+                try
                 {
-                    Log($"Client: {line}");
-                    string response = ProcessCommand(line);
-                    writer.WriteLine(response);
-                    Log($"Server: {response}");
+                    using NetworkStream stream = _client.GetStream();
+                    using StreamReader reader = new(stream, Encoding.UTF8);
+                    using StreamWriter writer = new(stream, Encoding.UTF8) { AutoFlush = true };
 
-                    if (line.ToUpper().Contains("LOGOUT"))
-                        break;
+                    Log("Connection established.");
+                    writer.WriteLine("* OK IMAP Server Ready");
+                    Log("* OK IMAP Server Ready");
+
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        Log($"Client: {line}");
+                        string response = ProcessCommand(line);
+                        writer.WriteLine(response);
+                        Log($"Server: {response}");
+
+                        if (line.ToUpper().Contains("LOGOUT"))
+                            break;
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                Log($"Error: {ex.Message}");
-            }
-            finally
-            {
-                _client.Close();
-                Log("Connection closed.");
+                catch (Exception ex)
+                {
+                    Log($"Error: {ex.Message}");
+                }
+                finally
+                {
+                    Log("Connection closed.");
+                }
             }
         }
 
         private string ProcessCommand(string command)
         {
+            if (string.IsNullOrWhiteSpace(command))
+                return "BAD Empty command received";
+
             try
             {
-                // Kiểm tra nếu không phải JSON
                 if (!command.TrimStart().StartsWith("{"))
                     return "BAD Invalid command format: Must be JSON";
 
@@ -106,6 +110,7 @@ namespace BLL
                 return $"BAD Internal server error: {ex.Message}";
             }
         }
+
         private string HandleCapability(Dictionary<string, string> jsonCommand)
         {
             return "OK CAPABILITY completed";
@@ -119,16 +124,14 @@ namespace BLL
             if (!jsonCommand.ContainsKey("Username") || !jsonCommand.ContainsKey("Password"))
                 return "BAD LOGIN requires Username and Password";
 
-            string username = jsonCommand["Username"];
-            username = username + _defaultDomain;
-            string password = jsonCommand["Password"];
-            password = SecurityBLL.Sha256(password);       // Hash password
+            string username = jsonCommand["Username"] + _defaultDomain;
+            string password = SecurityBLL.Sha256(jsonCommand["Password"]);
 
             var account = _accountDAL.GetAccount(username, password);
 
             if (account != null)
             {
-                _currentUser = username;
+                _currentUser = account;
                 _isAuthenticated = true;
                 return "OK LOGIN completed";
             }
@@ -146,10 +149,12 @@ namespace BLL
             }
 
             string username = jsonCommand["Username"];
+            if (username.Length < 5 || username.Length > 50)
+                return "BAD Username length must be between 5 and 50 characters";
+
             string fullname = jsonCommand["Fullname"];
-            string password = jsonCommand["Password"];
-            password = SecurityBLL.Sha256(password);       // Hash password
-            string email = username+_defaultDomain;
+            string password = SecurityBLL.Sha256(jsonCommand["Password"]);
+            string email = username + _defaultDomain;
 
             var account = new Account
             {
@@ -158,9 +163,11 @@ namespace BLL
                 Password = password
             };
 
+            Log($"Registering user: {fullname}");
+
             if (_accountDAL.InsertAccount(account))
             {
-                string userDir = Path.Combine(_baseDir, username);
+                string userDir = Path.GetFullPath(Path.Combine(_baseDir, username));
 
                 try
                 {
@@ -185,12 +192,12 @@ namespace BLL
             if (!_isAuthenticated)
                 return "NO Not authenticated";
 
-            if (!jsonCommand.ContainsKey("NewFullname"))
-                return "BAD CHNAME requires NewFullname";
+            if (!jsonCommand.ContainsKey("Newfullname"))
+                return "BAD CHNAME requires Newfullname";
 
-            string newName = jsonCommand["NewFullname"];
+            string newName = jsonCommand["Newfullname"];
 
-            if (_accountDAL.UpdateFullName(_currentUser, newName))
+            if (_accountDAL.UpdateFullName(_currentUser.EmailAddress, newName))
                 return "OK CHNAME completed";
 
             return "NO CHNAME failed";
@@ -201,15 +208,13 @@ namespace BLL
             if (!_isAuthenticated)
                 return "NO Not authenticated";
 
-            if (!jsonCommand.ContainsKey("OldPassword") || !jsonCommand.ContainsKey("NewPassword"))
-                return "BAD CHPASS requires OldPassword and NewPassword";
+            if (!jsonCommand.ContainsKey("Oldpassword") || !jsonCommand.ContainsKey("Newpassword"))
+                return "BAD CHPASS requires Oldpassword and Newpassword";
 
-            string oldPassword = jsonCommand["OldPassword"];
-            oldPassword = SecurityBLL.Sha256(oldPassword);       // Hash password
-            string newPassword = jsonCommand["NewPassword"];
-            newPassword = SecurityBLL.Sha256(newPassword);       // Hash password
+            string oldPassword = SecurityBLL.Sha256(jsonCommand["Oldpassword"]);
+            string newPassword = SecurityBLL.Sha256(jsonCommand["Newpassword"]);
 
-            if (_accountDAL.UpdatePassword(_currentUser, oldPassword, newPassword))
+            if (_accountDAL.UpdatePassword(_currentUser.EmailAddress, oldPassword, newPassword))
                 return "OK CHPASS completed";
 
             return "NO CHPASS failed";
@@ -220,13 +225,36 @@ namespace BLL
             if (!_isAuthenticated)
                 return "NO Not authenticated";
 
-            if (!jsonCommand.ContainsKey("Folder"))
-                return "BAD SELECT requires Folder";
+            if (!jsonCommand.ContainsKey("Mailbox"))
+                return "BAD SELECT requires Mailbox";
 
-            string folder = jsonCommand["Folder"].ToLower();
+            string mailBox = jsonCommand["Mailbox"].ToUpper();
+            try
+            {
+                DataTable mailsTable = mailBox switch
+                {
+                    "INBOX" => _mailDAL.GetInboxMails(_currentUser.EmailAddress),
+                    "SENT" => _mailDAL.GetSentMails(_currentUser.EmailAddress),
+                    "TRASH" => _mailDAL.GetDeletedMails(_currentUser.EmailAddress),
+                    "ALL" => _mailDAL.GetAllMails(_currentUser.EmailAddress),
+                    _ => throw new ArgumentException("Invalid folder")
+                };
 
-            // Implement logic to fetch mails from the selected folder
-            return "OK SELECT completed";
+                foreach (DataRow row in mailsTable.Rows)
+                {
+                    string mailId = row["id"]?.ToString() ?? "N/A";
+                    string sender = row["sender"]?.ToString() ?? "N/A";
+                    string receiver = row["receiver"]?.ToString() ?? "N/A";
+                    string subject = row["subject"]?.ToString() ?? "N/A";
+                    Log($"MailId: {mailId}, From: {sender}, To: {receiver}, Subject: {subject}");
+                }
+
+                return "OK SELECT completed";
+            }
+            catch (Exception ex)
+            {
+                return $"NO SELECT failed - {ex.Message}";
+            }
         }
 
         private string HandleFetch(Dictionary<string, string> jsonCommand)
@@ -234,15 +262,13 @@ namespace BLL
             if (!_isAuthenticated)
                 return "NO Not authenticated";
 
-            if (!jsonCommand.ContainsKey("MailId") || !int.TryParse(jsonCommand["MailId"], out int mailId))
+            if (!jsonCommand.ContainsKey("Mailid") || !int.TryParse(jsonCommand["Mailid"], out int mailId))
                 return "BAD FETCH requires a valid MailId";
 
-            var mail = _mailDAL.GetMailById(mailId, _currentUser);
+            var mail = _mailDAL.GetMailById(mailId, _currentUser.EmailAddress);
 
             if (mail != null)
-            {
                 return $"OK FETCH completed\n{mail.Content}";
-            }
 
             return "NO FETCH failed";
         }
@@ -252,10 +278,10 @@ namespace BLL
             if (!_isAuthenticated)
                 return "NO Not authenticated";
 
-            if (!jsonCommand.ContainsKey("MailId") || !int.TryParse(jsonCommand["MailId"], out int mailId))
-                return "BAD DELETE requires a valid MailId";
+            if (!jsonCommand.ContainsKey("Mailid") || !int.TryParse(jsonCommand["Mailid"], out int mailId))
+                return "BAD DELETE requires a valid Mailid";
 
-            if (_mailDAL.MarkMailAsDeleted(mailId, _currentUser))
+            if (_mailDAL.MarkMailAsDeleted(mailId, _currentUser.EmailAddress))
                 return "OK DELETE completed";
 
             return "NO DELETE failed";
@@ -275,14 +301,14 @@ namespace BLL
             if (!_isAuthenticated)
                 return "NO Not authenticated";
 
-            _currentUser = string.Empty;
+            _currentUser = null;
             _isAuthenticated = false;
             return "OK LOGOUT completed";
         }
 
         private void Log(string message)
         {
-            _logAction?.Invoke($"{DateTime.Now:HH:mm:ss} - {message}");
+            _logAction?.Invoke(message);
         }
     }
 }

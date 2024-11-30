@@ -3,211 +3,250 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
 using System.Text;
-using DTO;
+using Newtonsoft.Json;
 using DAL;
+using DTO;
 
 namespace BLL
 {
     public class SMTPExecuteBLL
     {
         private readonly TcpClient _client;
-        private readonly Action<string> _logAction; // Action để ghi log
-        private readonly MailDAL _mailDAL; // DAL để lưu vào database
-        private readonly string _baseDir; // Thư mục lưu tài khoản email
-        private readonly string _defaultDomain; // Domain mặc định là @vku.udn.vn
-        
+        private readonly Action<string> _logAction;
+        private readonly AccountDAL _accountDAL;
+        private readonly MailDAL _mailDAL;
+        private readonly string _baseDir;
+        private readonly string _defaultDomain;
+        private Account _currentUser;
+        private bool _isAuthenticated;
+        private string _senderEmail;
+        private string _receiverEmail;
+        private StringBuilder _emailData;
 
-        private string _senderEmail = string.Empty;
-        private string _receiverEmail = string.Empty;
-        private readonly StringBuilder _emailData = new(); // Lưu nội dung email
-        private bool _isDataMode = false;
-        private bool _mailFromReceived = false;
-        private bool _rcptToReceived = false;
-
-        public SMTPExecuteBLL(TcpClient client, Action<string> logAction,  string baseDir, string defaultDomain)
+        public SMTPExecuteBLL(TcpClient client, Action<string> logAction, string baseDir, string defaultDomain)
         {
             _client = client ?? throw new ArgumentNullException(nameof(client));
             _logAction = logAction ?? throw new ArgumentNullException(nameof(logAction));
-             _mailDAL = new MailDAL() ;
+            _accountDAL = new AccountDAL();
+            _mailDAL = new MailDAL();
             _baseDir = baseDir ?? throw new ArgumentNullException(nameof(baseDir));
             _defaultDomain = defaultDomain ?? throw new ArgumentNullException(nameof(defaultDomain));
-           
+            _emailData = new StringBuilder();
         }
 
         public void Start()
         {
-            try
+            using (_client)
             {
-                using NetworkStream stream = _client.GetStream();
-                using StreamReader reader = new(stream, Encoding.ASCII);
-                using StreamWriter writer = new(stream, Encoding.ASCII) { AutoFlush = true };
-
-                Log("Connection established with the client.");
-                writer.WriteLine("220 Welcome to Simple SMTP Server");
-                Log("220 Welcome to Simple SMTP Server");
-
-                string line;
-                while ((line = reader.ReadLine()) != null)
+                try
                 {
-                    Log($"Client: {line}");
-                    string response;
+                    using NetworkStream stream = _client.GetStream();
+                    using StreamReader reader = new(stream, Encoding.UTF8);
+                    using StreamWriter writer = new(stream, Encoding.UTF8) { AutoFlush = true };
 
-                    if (_isDataMode)
+                    Log("Connection established.");
+                    writer.WriteLine("220 SMTP Server Ready");
+
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
                     {
-                        response = HandleDataInput(line, writer);
-                    }
-                    else
-                    {
-                        response = ProcessCommand(line);
+                        Log($"Client: {line}");
+                        string response = ProcessCommand(line);
                         writer.WriteLine(response);
                         Log($"Server: {response}");
-                    }
 
-                    if (line.ToUpper() == "QUIT")
-                        break;
+                        if (response.StartsWith("221"))
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log($"Error: {ex.Message}");
+                }
+                finally
+                {
+                    Log("Connection closed.");
                 }
             }
-            catch (IOException ex)
-            {
-                Log($"Connection error: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                Log($"Unexpected error: {ex.Message}");
-            }
-            finally
-            {
-                _client.Close();
-                Log("Connection has been closed.");
-            }
-        }
-
-        private string HandleDataInput(string line, StreamWriter writer)
-        {
-            if (line == ".")
-            {
-                _isDataMode = false;
-                SaveEmail(); // Gọi hàm lưu email
-                writer.WriteLine("250 OK: Message accepted for delivery");
-                Log("Email has been accepted for delivery.");
-                return "250 OK";
-            }
-
-            _emailData.AppendLine(line);
-            return string.Empty;
         }
 
         private string ProcessCommand(string command)
         {
-            if (command.StartsWith("HELO", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(command))
+                return "500 Syntax error, command unrecognized";
+
+            try
             {
-                return "250 Hello, pleased to meet you";
+                if (!command.TrimStart().StartsWith("{"))
+                    return "500 Invalid command format: Must be JSON";
+
+                var jsonCommand = JsonConvert.DeserializeObject<Dictionary<string, string>>(command);
+                if (jsonCommand == null || !jsonCommand.ContainsKey("Command"))
+                    return "500 Invalid JSON format";
+
+                string cmd = jsonCommand["Command"].ToUpper();
+
+                return cmd switch
+                {
+                    "HELO" => HandleHelo(jsonCommand),
+                    "LOGIN" => HandleLogin(jsonCommand),
+                    "DATA" => HandleDataCommand(jsonCommand),
+                    "MAIL FROM" => HandleMailFrom(jsonCommand),
+                    "RCPT TO" => HandleRcptTo(jsonCommand),
+                    "FORWARD FROM" => HandleForwardFrom(jsonCommand),
+                    "FORWARD TO" => HandleForwardTo(jsonCommand),
+                    "MAIL FORWARD" => HandleMailForward(jsonCommand),
+                    "REPLY" => HandleReply(jsonCommand),
+                    "SUBJECT" => HandleSubject(jsonCommand),
+                    "CONTENT" => HandleContent(jsonCommand),
+                    "ATTACH" => HandleAttch(jsonCommand),
+                    "QUIT" => HandleQuit(),
+                    _ => "500 Command unrecognized"
+                };
             }
-            else if (command.StartsWith("MAIL FROM:", StringComparison.OrdinalIgnoreCase))
+            catch (JsonException ex)
             {
-                return HandleMailFrom(command);
-            }
-            else if (command.StartsWith("RCPT TO:", StringComparison.OrdinalIgnoreCase))
-            {
-                return HandleRcptTo(command);
-            }
-            else if (command.StartsWith("DATA", StringComparison.OrdinalIgnoreCase))
-            {
-                return HandleDataCommand();
-            }
-            else if (command.ToUpper() == "QUIT")
-            {
-                return "221 Bye";
-            }
-            else
-            {
-                return "502 Command not implemented";
+                return $"500 Error processing command: {ex.Message}";
             }
         }
 
-        private string HandleMailFrom(string command)
+        private string HandleHelo(Dictionary<string, string> jsonCommand)
         {
-            _senderEmail = ExtractEmail(command, "MAIL FROM:");
-            if (ValidateEmail(_senderEmail))
+            if (!jsonCommand.ContainsKey("Domain"))
+                return "500 HELO requires Domain";
+
+            return $"250 Hello {jsonCommand["Domain"]}";
+        }
+
+        private string HandleLogin(Dictionary<string, string> jsonCommand)
+        {
+            if (_isAuthenticated)
+                return "503 Already authenticated";
+
+            if (!jsonCommand.ContainsKey("Username") || !jsonCommand.ContainsKey("Password"))
+                return "500 LOGIN requires Username and Password";
+
+            string username = jsonCommand["Username"] + _defaultDomain;
+            string password = SecurityBLL.Sha256(jsonCommand["Password"]);
+
+            var account = _accountDAL.GetAccount(username, password);
+
+            if (account != null)
             {
-                _mailFromReceived = true;
-                _rcptToReceived = false; // Reset trạng thái RCPT TO
-                return "250 OK";
+                _currentUser = account;
+                _isAuthenticated = true;
+                return "250 LOGIN successful";
             }
-            return "550 Invalid sender email";
+
+            return "535 Authentication failed";
         }
 
-        private string HandleRcptTo(string command)
+        private string HandleDataCommand(Dictionary<string, string> jsonCommand)
         {
-            if (!_mailFromReceived)
-                return "503 Bad sequence of commands";
+            if (!_isAuthenticated)
+                return "530 Authentication required";
 
-            _receiverEmail = ExtractEmail(command, "RCPT TO:");
-            if (ValidateEmail(_receiverEmail))
-            {
-                _rcptToReceived = true;
-                return "250 OK";
-            }
-            return "550 Invalid recipient email";
+            return "250 Message accepted for start send mail process. continue ";
         }
 
-        private string HandleDataCommand()
+        private string HandleMailFrom(Dictionary<string, string> jsonCommand)
         {
-            if (!_mailFromReceived || !_rcptToReceived)
-                return "503 Bad sequence of commands";
+            if (!_isAuthenticated)
+                return "530 Authentication required";
 
-            _isDataMode = true;
-            _emailData.Clear();
-            return "354 End data with <CR><LF>.<CR><LF>";
+            if (!jsonCommand.ContainsKey("Sender") || !IsValidEmail(jsonCommand["Sender"]))
+                return "500 MAIL FROM requires a valid Sender email";
+
+            _senderEmail = jsonCommand["Sender"];
+            return "250 Sender OK";
         }
 
-        private string ExtractEmail(string command, string prefix)
+        private string HandleRcptTo(Dictionary<string, string> jsonCommand)
         {
-            return command.Substring(prefix.Length).Trim('<', '>', ' ').ToLower();
+            if (!_isAuthenticated)
+                return "530 Authentication required";
+
+            if (!jsonCommand.ContainsKey("Recipient") || !IsValidEmail(jsonCommand["Recipient"]))
+                return "500 RCPT TO requires a valid Recipient email";
+
+            _receiverEmail = jsonCommand["Recipient"];
+            return "250 Recipient OK";
+        }
+
+        private string HandleForwardFrom(Dictionary<string, string> jsonCommand)
+        {
+
+        }
+
+        private string HandleForwardTo(Dictionary<string, string> jsonCommand)
+        {
+
+        }
+
+        private string HandleMailForward(Dictionary<string, string> jsonCommand)
+        {
+           
+        }
+
+
+        private string HandleReply(Dictionary<string, string> jsonCommand)
+        {
+            
+        }
+
+        private string HandleSubject(Dictionary<string, string> jsonCommand)
+        {
+          
+        }
+
+        private string HandleContent(Dictionary<string, string> jsonCommand)
+        {
+         
+        }
+
+        private string HandleAttch(Dictionary<string, string> jsonCommand)
+        {
+          
+        }
+
+        private string HandleQuit()
+        {
+            return "221 Bye";
         }
 
         private void SaveEmail()
         {
             try
             {
-                if (string.IsNullOrEmpty(_receiverEmail))
-                    throw new InvalidOperationException("Recipient email is not set.");
+                // 1. Tạo đường dẫn thư mục lưu trữ email
+                string receiverDirectory = Path.Combine(_baseDir, _receiverEmail.Replace(_defaultDomain, ""));
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string emailDirectory = Path.Combine(receiverDirectory, timestamp);
+                Directory.CreateDirectory(emailDirectory);
 
-                // Tạo thư mục theo email người nhận 
-                // vantn.21it@vku.udn.vn
-                //baseDir -> D\\Source-CSharp\\MailServer\\BaseDir
-                // vantn.21it -> directory
-                // @vku.udn.vn -> defaultDomain
-                string directory = Path.Combine(_baseDir, _receiverEmail.Replace("@", "_"));
-                Directory.CreateDirectory(directory);
+                // 2. Tạo file nội dung email
+                string contentFilePath = Path.Combine(emailDirectory, $"{timestamp}.txt");
+                File.WriteAllText(contentFilePath, _emailData.ToString());
 
-                // Lưu file email
-                string filePath = Path.Combine(directory, $"{DateTime.Now:yyyyMMdd_HHmmss}.eml");
-                File.WriteAllText(filePath, _emailData.ToString());
-
-                // Tạo đối tượng Mail DTO
+                // 3. Tạo DTO để lưu vào cơ sở dữ liệu
                 var mail = new Mail
                 {
                     CreatedAt = DateTime.Now,
                     Sender = _senderEmail,
                     Receiver = _receiverEmail,
-                    Owner = _receiverEmail,
+                    Owner = _currentUser?.EmailAddress, // Nếu cần lưu thông tin người gửi
                     IsRead = false,
-                    Attachment = null,
-                    Subject = ExtractSubject(), // Lấy Subject từ dữ liệu email
-                    Content = filePath, // Lưu đường dẫn file vào Content
-                    Reply = 0
+                    Attachment = null, // Bạn có thể gán tên file đính kèm (nếu có)
+                    Subject =  , // Có thể lấy từ lệnh "SUBJECT"
+                    Content = contentFilePath.Replace("\\", "/"), // Đường dẫn file
+                    DeletedAt = null,
+                    Reply = null
                 };
 
-                // Gọi MailDAL để lưu vào cơ sở dữ liệu
-                if (_mailDAL.InsertMail(mail))
-                {
-                    Log($"Email saved to {filePath} and inserted into the database.");
-                }
-                else
-                {
-                    Log("Failed to insert email into the database.");
-                }
+                // 4. Lưu vào cơ sở dữ liệu
+                _mailDAL.InsertMail(mail);
+
+                Log($"Email saved successfully with content path: {contentFilePath}");
             }
             catch (Exception ex)
             {
@@ -215,27 +254,16 @@ namespace BLL
             }
         }
 
-        private string ExtractSubject()
-        {
-            var emailLines = _emailData.ToString().Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
-            foreach (var line in emailLines)
-            {
-                if (line.StartsWith("Subject:", StringComparison.OrdinalIgnoreCase))
-                {
-                    return line.Substring(8).Trim();
-                }
-            }
-            return "No Subject"; // Mặc định nếu không tìm thấy Subject
-        }
 
-        private bool ValidateEmail(string email)
+        private bool IsValidEmail(string email)
         {
-            return email.Contains("@") && email.Contains(".");
+            //example:  vantn.21it@vku.udn.vn  with @vku.udn.vn is _defaultDomain 
+            return email.Contains("@") && email.EndsWith(_defaultDomain);
         }
 
         private void Log(string message)
         {
-            _logAction?.Invoke($"{DateTime.Now:HH:mm:ss} - {message}");
+            _logAction?.Invoke(message);
         }
     }
 }
