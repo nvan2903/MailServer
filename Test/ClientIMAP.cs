@@ -3,6 +3,7 @@ using System.IO;
 using System.Net.Sockets;
 using System.Text;
 using Newtonsoft.Json;
+using DTO;
 
 namespace Test
 {
@@ -47,32 +48,32 @@ namespace Test
                 {
                     Command = "LOGIN",
                     Username = "vantn.21it",
-                    Password = "12345678"
+                    Password = "87654321"
                 };
                 writer.WriteLine(JsonConvert.SerializeObject(loginCommand));
                 response = reader.ReadLine();
                 Console.WriteLine($"Server: {response}");
 
-                // Gửi lệnh CHNAME để đổi tên
-                var chnameCommand = new
-                {
-                    Command = "CHNAME",
-                    Newfullname = "Văn Tào Nguyên"
-                };
-                writer.WriteLine(JsonConvert.SerializeObject(chnameCommand));
-                response = reader.ReadLine();
-                Console.WriteLine($"Server: {response}");
+                //// Gửi lệnh CHNAME để đổi tên
+                //var chnameCommand = new
+                //{
+                //    Command = "CHNAME",
+                //    Newfullname = "Văn Tào Nguyên"
+                //};
+                //writer.WriteLine(JsonConvert.SerializeObject(chnameCommand));
+                //response = reader.ReadLine();
+                //Console.WriteLine($"Server: {response}");
 
-                // Gửi lệnh CHPASS để đổi mật khẩu
-                var chpassCommand = new
-                {
-                    Command = "CHPASS",
-                    Oldpassword = "12345678",
-                    Newpassword = "87654321"
-                };
-                writer.WriteLine(JsonConvert.SerializeObject(chpassCommand));
-                response = reader.ReadLine();
-                Console.WriteLine($"Server: {response}");
+                //// Gửi lệnh CHPASS để đổi mật khẩu
+                //var chpassCommand = new
+                //{
+                //    Command = "CHPASS",
+                //    Oldpassword = "12345678",
+                //    Newpassword = "87654321"
+                //};
+                //writer.WriteLine(JsonConvert.SerializeObject(chpassCommand));
+                //response = reader.ReadLine();
+                //Console.WriteLine($"Server: {response}");
 
                 // Gửi lệnh SELECT để lấy danh sách email trong INBOX
                 var selectCommand = new
@@ -83,6 +84,75 @@ namespace Test
                 writer.WriteLine(JsonConvert.SerializeObject(selectCommand));
                 response = reader.ReadLine();
                 Console.WriteLine($"Server: {response}");
+
+
+
+
+
+
+
+
+
+                // Gửi lệnh FETCH để lấy thông tin email
+
+
+                //var fetchCommand = new
+                //{
+                //    Command = "FETCH",
+                //    Mailid = 231
+                //};
+                //writer.WriteLine(JsonConvert.SerializeObject(fetchCommand));
+                //response = reader.ReadLine();     
+                //Console.Write($"Server: {response}");
+
+
+                var fetchCommand = new
+                {
+                    Command = "FETCH",
+                    Mailid = 231
+                };
+                writer.WriteLine(JsonConvert.SerializeObject(fetchCommand));
+
+                // Đọc nhiều dòng phản hồi từ server (trong trường hợp có phản hồi dài)
+                StringBuilder responseBuilder = new StringBuilder();
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    Console.WriteLine($"Server: {line}");
+                    responseBuilder.AppendLine(line);
+
+                    // Giả định rằng phản hồi JSON sẽ kết thúc bằng dấu đóng "}"
+                    if (line.Trim().EndsWith("}"))
+                    {
+                        break;
+                    }
+                }
+
+                // Kiểm tra và xử lý JSON nếu có
+                string jsonResponse = responseBuilder.ToString();
+                if (!string.IsNullOrEmpty(jsonResponse))
+                {
+                    try
+                    {
+                        // Phân tích dữ liệu JSON
+                        var emailData = JsonConvert.DeserializeObject<Mail>(jsonResponse);
+                        Console.WriteLine("\nEmail Details:");
+                        Console.WriteLine($"ID: {emailData.Id}");
+                        Console.WriteLine($"Sender: {emailData.Sender}");
+                        Console.WriteLine($"Receiver: {emailData.Receiver}");
+                        Console.WriteLine($"Subject: {emailData.Subject}");
+                        Console.WriteLine($"Created At: {emailData.CreatedAt}");
+                        Console.WriteLine($"Is Read: {emailData.IsRead}");
+                        Console.WriteLine($"Attachment: {emailData.Attachment}");
+                        Console.WriteLine($"Content: {emailData.Content}");
+                    }
+                    catch (JsonException jsonEx)
+                    {
+                        Console.WriteLine("Failed to parse JSON response: " + jsonEx.Message);
+                    }
+                }
+
+
 
 
                 //// Send SELECT INBOX command

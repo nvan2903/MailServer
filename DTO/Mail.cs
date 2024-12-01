@@ -10,7 +10,7 @@ namespace DTO
         public string SenderName { get; set; }
         public string Receiver { get; set; }
         public string ReceiverName { get; set; }
-        public int Reply { get; set; }
+        public int? Reply { get; set; }
         public string Owner { get; set; }
         public bool IsRead { get; set; }
         public string Attachment { get; set; }

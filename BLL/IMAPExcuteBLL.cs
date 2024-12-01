@@ -263,15 +263,44 @@ namespace BLL
                 return "NO Not authenticated";
 
             if (!jsonCommand.ContainsKey("Mailid") || !int.TryParse(jsonCommand["Mailid"], out int mailId))
-                return "BAD FETCH requires a valid MailId";
+                return "BAD FETCH requires a valid Mailid";
+
+            Log($"Fetching mail with ID: {mailId} for user: {_currentUser.EmailAddress}");
 
             var mail = _mailDAL.GetMailById(mailId, _currentUser.EmailAddress);
 
             if (mail != null)
-                return $"OK FETCH completed\n{mail.Content}";
+            {
+                Log($"Mail found: {mail.Subject}");
+                string content = string.Empty;
+                if (!string.IsNullOrEmpty(mail.Content) && File.Exists(mail.Content))
+                {
+                    content = File.ReadAllText(mail.Content);
+                }
 
+                // Tạo đối tượng JSON
+                var emailData = new
+                {
+                    mail.Id,
+                    mail.Sender,
+                    mail.Receiver,
+                    mail.Subject,
+                    mail.CreatedAt,
+                    mail.IsRead,
+                    mail.Attachment,
+                    Content = content
+                };
+                // Chuyển thành JSON
+                string jsonResponse = JsonConvert.SerializeObject(emailData, Formatting.Indented);
+                // Gửi trả JSON
+                return $"200 OK {jsonResponse}";
+
+            }
+
+            Log("Mail not found or access denied.");
             return "NO FETCH failed";
         }
+
 
         private string HandleDelete(Dictionary<string, string> jsonCommand)
         {
@@ -291,9 +320,13 @@ namespace BLL
         {
             if (!_isAuthenticated)
                 return "NO Not authenticated";
+            if (!jsonCommand.ContainsKey("Mailid") || !int.TryParse(jsonCommand["Mailid"], out int mailId))
+                return "BAD RESTORE requires a valid Mailid";
 
-            // Implement logic to restore deleted mail
-            return "OK RESTORE completed";
+            if (_mailDAL.RestoreMail(mailId, _currentUser.EmailAddress))
+                return "OK RESTORE completed";
+
+            return "NO RESTORE failed";
         }
 
         private string HandleLogout(Dictionary<string, string> jsonCommand)

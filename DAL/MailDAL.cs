@@ -32,9 +32,10 @@ namespace DAL
             }
         }
 
-        public bool DeleteMailPermanently(int mailId, string owner)
+        // method to restore mail 
+        public bool RestoreMail(int mailId, string owner)
         {
-            string sql = "DELETE FROM mail WHERE id = @MailId AND owner = N@Owner";
+            string sql = "UPDATE mail SET deleted_at = NULL WHERE id = @MailId AND owner = @Owner";
             try
             {
                 using (SqlCommand cmd = new SqlCommand(sql, conn))
@@ -48,7 +49,7 @@ namespace DAL
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error in DeleteMailPermanently: " + ex.Message);
+                Console.WriteLine("Error in RestoreMail: " + ex.Message);
                 return false;
             }
             finally
@@ -56,7 +57,6 @@ namespace DAL
                 CloseConnection();
             }
         }
-
         public bool UpdateMailReadStatus(int mailId, bool isRead)
         {
             string sql = "UPDATE mail SET is_read = @IsRead WHERE id = @MailId";
@@ -84,7 +84,7 @@ namespace DAL
 
         public Mail GetMailById(int mailId, string owner)
         {
-            string sql = "SELECT created_at, sender, receiver, owner, is_read, attachment, subject, content, reply, deleted_at FROM mail WHERE id = @MailId AND owner = N@Owner";
+            string sql = "SELECT created_at, sender, receiver, owner, is_read, attachment, subject, content, reply, deleted_at FROM mail WHERE id = @MailId AND owner = @Owner";
             try
             {
                 using (SqlCommand cmd = new SqlCommand(sql, conn))
@@ -111,6 +111,10 @@ namespace DAL
                                 DeletedAt = reader["deleted_at"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["deleted_at"])
                             };
                         }
+                        else
+                        {
+                            Console.WriteLine($"Mail with ID {mailId} and owner {owner} not found.");
+                        }
                     }
                 }
             }
@@ -122,18 +126,22 @@ namespace DAL
             {
                 CloseConnection();
             }
-            return new Mail();
+            return null;
         }
+
 
         public bool InsertMail(Mail mail)
         {
             string sql = "INSERT INTO mail (created_at, sender, receiver, owner, is_read, attachment, subject, content, reply, deleted_at) " +
-                         "VALUES (@CreatedAt, @Sender, @Receiver, N@Owner, @IsRead, @Attachment, @Subject, @Content, @Reply, NULL)";
+                         "VALUES (@CreatedAt, @Sender, @Receiver, @Owner, @IsRead, @Attachment, @Subject, @Content, @Reply, NULL)";
             try
             {
                 using (SqlCommand cmd = new SqlCommand(sql, conn))
                 {
-                    cmd.Parameters.AddWithValue("@CreatedAt", mail.CreatedAt);
+                    // Chuyển đổi CreatedAt sang định dạng yyyy-MM-dd HH:mm:ss
+                    cmd.Parameters.AddWithValue("@CreatedAt", mail.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
+
+                    // Thêm các tham số khác
                     cmd.Parameters.AddWithValue("@Sender", mail.Sender);
                     cmd.Parameters.AddWithValue("@Receiver", mail.Receiver);
                     cmd.Parameters.AddWithValue("@Owner", mail.Owner);
@@ -141,8 +149,9 @@ namespace DAL
                     cmd.Parameters.AddWithValue("@Attachment", string.IsNullOrEmpty(mail.Attachment) ? DBNull.Value : mail.Attachment);
                     cmd.Parameters.AddWithValue("@Subject", string.IsNullOrEmpty(mail.Subject) ? DBNull.Value : mail.Subject);
                     cmd.Parameters.AddWithValue("@Content", mail.Content);
-                    cmd.Parameters.AddWithValue("@Reply", mail.Reply == 0 ? DBNull.Value : mail.Reply);
+                    cmd.Parameters.AddWithValue("@Reply", mail.Reply == null ? DBNull.Value : mail.Reply);
 
+                    // Mở kết nối và thực thi
                     OpenConnection();
                     int rowsAffected = cmd.ExecuteNonQuery();
                     return rowsAffected > 0;
@@ -159,7 +168,8 @@ namespace DAL
             }
         }
 
-       
+
+
 
         // method to get inbox mails
         public DataTable GetInboxMails(string currentUser)

@@ -35,6 +35,11 @@
             txtScreenSMTP = new TextBox();
             txtScreenIMAP = new TextBox();
             txtScreenFTP = new TextBox();
+            lblSMTPStatus = new Label();
+            lblIMAPStatus = new Label();
+            lblFTPStatus = new Label();
+            btnStopServer = new Button();
+            btnSaveLog = new Button();
             SuspendLayout();
             // 
             // btnStartServer
@@ -105,6 +110,55 @@
             txtScreenFTP.Size = new Size(611, 589);
             txtScreenFTP.TabIndex = 7;
             // 
+            // lblSMTPStatus
+            // 
+            lblSMTPStatus.AutoSize = true;
+            lblSMTPStatus.Location = new Point(260, 207);
+            lblSMTPStatus.Name = "lblSMTPStatus";
+            lblSMTPStatus.Size = new Size(55, 23);
+            lblSMTPStatus.TabIndex = 8;
+            lblSMTPStatus.Text = "label1";
+            // 
+            // lblIMAPStatus
+            // 
+            lblIMAPStatus.AutoSize = true;
+            lblIMAPStatus.Location = new Point(937, 207);
+            lblIMAPStatus.Name = "lblIMAPStatus";
+            lblIMAPStatus.Size = new Size(55, 23);
+            lblIMAPStatus.TabIndex = 9;
+            lblIMAPStatus.Text = "label2";
+            // 
+            // lblFTPStatus
+            // 
+            lblFTPStatus.AutoSize = true;
+            lblFTPStatus.Location = new Point(1573, 207);
+            lblFTPStatus.Name = "lblFTPStatus";
+            lblFTPStatus.Size = new Size(55, 23);
+            lblFTPStatus.TabIndex = 10;
+            lblFTPStatus.Text = "label3";
+            // 
+            // btnStopServer
+            // 
+            btnStopServer.Font = new Font("Segoe UI Semibold", 14F, FontStyle.Bold);
+            btnStopServer.Location = new Point(301, 23);
+            btnStopServer.Name = "btnStopServer";
+            btnStopServer.Size = new Size(258, 72);
+            btnStopServer.TabIndex = 11;
+            btnStopServer.Text = "STOP SERVER";
+            btnStopServer.UseVisualStyleBackColor = true;
+            btnStopServer.Click += btnStopServer_Click;
+            // 
+            // btnSaveLog
+            // 
+            btnSaveLog.Font = new Font("Segoe UI Semibold", 14F, FontStyle.Bold);
+            btnSaveLog.Location = new Point(586, 23);
+            btnSaveLog.Name = "btnSaveLog";
+            btnSaveLog.Size = new Size(258, 72);
+            btnSaveLog.TabIndex = 12;
+            btnSaveLog.Text = "SAVE LOG";
+            btnSaveLog.UseVisualStyleBackColor = true;
+            btnSaveLog.Click += btnSaveLog_Click;
+            // 
             // FormHome
             // 
             AutoScaleDimensions = new SizeF(9F, 23F);
@@ -112,6 +166,11 @@
             AutoScroll = true;
             BackColor = SystemColors.ButtonHighlight;
             ClientSize = new Size(1924, 1055);
+            Controls.Add(btnSaveLog);
+            Controls.Add(btnStopServer);
+            Controls.Add(lblFTPStatus);
+            Controls.Add(lblIMAPStatus);
+            Controls.Add(lblSMTPStatus);
             Controls.Add(txtScreenFTP);
             Controls.Add(txtScreenIMAP);
             Controls.Add(txtScreenSMTP);
@@ -135,5 +194,10 @@
         private TextBox txtScreenSMTP;
         private TextBox txtScreenIMAP;
         private TextBox txtScreenFTP;
+        private Label lblSMTPStatus;
+        private Label lblIMAPStatus;
+        private Label lblFTPStatus;
+        private Button btnStopServer;
+        private Button btnSaveLog;
     }
 }

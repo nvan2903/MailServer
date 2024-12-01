@@ -1,6 +1,10 @@
-﻿
+﻿using System;
+using System.Drawing;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
+using System.Windows.Forms;
 using BLL;
 using DotNetEnv;
 
@@ -10,28 +14,42 @@ namespace GUI
     {
         private TcpListener smtpServer, imapServer, ftpServer;
         private Thread smtpThread, imapThread, ftpThread;
-        private bool isRunning = false; // Để kiểm soát việc dừng luồng
-        string baseDir;
-        string defaultDomain;
+        private bool isRunning = false;
+        private int smtpConnectionCount = 0, imapConnectionCount = 0, ftpConnectionCount = 0;
+        private string baseDir, defaultDomain;
 
         public FormHome()
         {
             InitializeComponent();
-            // Provide the additional parameters
-           
+            LoadEnvConfig();
+            this.FormClosing += FormHome_FormClosing;
+        }
+
+        private void LoadEnvConfig()
+        {
+            try
+            {
+                Env.TraversePath().Load();
+                baseDir = Env.GetString("BASE_DIRECTORY") ?? "C:\\ServerBaseDir";
+                defaultDomain = Env.GetString("DEFAULT_DOMAIN") ?? "example.com";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to load configuration: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void btnStartServer_Click(object sender, EventArgs e)
         {
             try
-            {           
-                Env.TraversePath().Load();          // Tải các biến môi trường từ file .env
-                baseDir = Env.GetString("BASE_DIRECTORY");
-                defaultDomain = Env.GetString("DEFAULT_DOMAIN");
+            {
                 StartServers();
                 StartListeningThreads();
-                this.FormClosing += FormHome_FormClosing;
+                UpdateServerStatus(lblSMTPStatus, true);
+                UpdateServerStatus(lblIMAPStatus, true);
+                UpdateServerStatus(lblFTPStatus, true);
                 btnStartServer.Enabled = false;
+                btnStopServer.Enabled = true;
                 AppendServerStartMessages();
             }
             catch (Exception ex)
@@ -39,6 +57,8 @@ namespace GUI
                 MessageBox.Show($"Can't start server: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+
 
         private void StartServers()
         {
@@ -50,10 +70,18 @@ namespace GUI
             imapServer.Start();
             ftpServer.Start();
 
-            isRunning = true; // Đánh dấu server đã khởi chạy
+            isRunning = true;
         }
 
-       
+        private void btnStopServer_Click(object sender, EventArgs e)
+        {
+            StopServers();
+            UpdateServerStatus(lblSMTPStatus, false);
+            UpdateServerStatus(lblIMAPStatus, false);
+            UpdateServerStatus(lblFTPStatus, false);
+            btnStartServer.Enabled = true;
+            btnStopServer.Enabled = false;
+        }
 
         private void StartListeningThreads()
         {
@@ -64,14 +92,11 @@ namespace GUI
                     try
                     {
                         TcpClient client = smtpServer.AcceptTcpClient();
-
-                        // Instantiate SMTPExecuteBLL with the required parameters
+                        Interlocked.Increment(ref smtpConnectionCount);
                         var smtpExecuteBLL = new SMTPExecuteBLL(client, LogSMTP, baseDir, defaultDomain);
-
-                        // Start handling SMTP commands for the client
                         smtpExecuteBLL.Start();
                     }
-                    catch (SocketException) { break; } // Kết thúc khi server dừng
+                    catch (SocketException) { break; }
                 }
             });
 
@@ -82,7 +107,8 @@ namespace GUI
                     try
                     {
                         TcpClient client = imapServer.AcceptTcpClient();
-                        var imapExecuteBLL = new IMAPExecuteBLL(client, LogIMAP, baseDir,defaultDomain);
+                        Interlocked.Increment(ref imapConnectionCount);
+                        var imapExecuteBLL = new IMAPExecuteBLL(client, LogIMAP, baseDir, defaultDomain);
                         imapExecuteBLL.Start();
                     }
                     catch (SocketException) { break; }
@@ -96,7 +122,8 @@ namespace GUI
                     try
                     {
                         TcpClient client = ftpServer.AcceptTcpClient();
-                        var ftpExecuteBLL = new FTPExcuteBLL(client, LogFTP,baseDir,defaultDomain);
+                        Interlocked.Increment(ref ftpConnectionCount);
+                        var ftpExecuteBLL = new FTPExcuteBLL(client, LogFTP, baseDir, defaultDomain);
                         ftpExecuteBLL.Start();
                     }
                     catch (SocketException) { break; }
@@ -112,42 +139,9 @@ namespace GUI
             ftpThread.Start();
         }
 
-        private void LogSMTP(string message)
-        {
-            UpdateTextBox(txtScreenSMTP, message);
-        }
-
-        private void LogIMAP(string message)
-        {
-            UpdateTextBox(txtScreenIMAP, message);
-        }
-
-        private void LogFTP(string message)
-        {
-            UpdateTextBox(txtScreenFTP, message);
-        }
-
-        private void UpdateTextBox(TextBox textBox, string message)
-        {
-            if (textBox.InvokeRequired)
-            {
-                textBox.Invoke(new Action(() => textBox.AppendText($"{message}{Environment.NewLine}")));
-            }
-            else
-            {
-                textBox.AppendText($"{message}{Environment.NewLine}");
-            }
-        }
-
-
-        private void FormHome_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            StopServers();
-        }
-
         private void StopServers()
         {
-            isRunning = false; // Ngừng các vòng lặp trong các luồng
+            isRunning = false;
 
             try
             {
@@ -157,13 +151,43 @@ namespace GUI
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error closing servers: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error stopping servers: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
-            // Đợi các luồng kết thúc
             smtpThread?.Join();
             imapThread?.Join();
             ftpThread?.Join();
+
+            smtpConnectionCount = 0;
+            imapConnectionCount = 0;
+            ftpConnectionCount = 0;
+        }
+
+        private void LogSMTP(string message) => UpdateTextBox(txtScreenSMTP, message);
+        private void LogIMAP(string message) => UpdateTextBox(txtScreenIMAP, message);
+        private void LogFTP(string message) => UpdateTextBox(txtScreenFTP, message);
+
+        private void UpdateTextBox(TextBox textBox, string message)
+        {
+            if (textBox.InvokeRequired)
+            {
+                textBox.Invoke(new Action(() =>
+                {
+                    textBox.AppendText($"{message}{Environment.NewLine}");
+                    textBox.ScrollToCaret();
+                }));
+            }
+            else
+            {
+                textBox.AppendText($"{message}{Environment.NewLine}");
+                textBox.ScrollToCaret();
+            }
+        }
+
+        private void UpdateServerStatus(Label label, bool isRunning)
+        {
+            label.Text = isRunning ? "Running" : "Stopped";
+            label.ForeColor = isRunning ? Color.Green : Color.Red;
         }
 
         private void AppendServerStartMessages()
@@ -171,6 +195,22 @@ namespace GUI
             txtScreenSMTP.AppendText("SMTP Server is starting to listen...\n");
             txtScreenIMAP.AppendText("IMAP Server is starting to listen...\n");
             txtScreenFTP.AppendText("FTP Server is starting to listen...\n");
+        }
+
+
+        private void FormHome_FormClosing(object sender, FormClosingEventArgs e) => StopServers();
+
+        private void btnSaveLog_Click(object sender, EventArgs e)
+        {
+            using (SaveFileDialog saveFileDialog = new SaveFileDialog())
+            {
+                saveFileDialog.Filter = "Text Files (*.txt)|*.txt|All Files (*.*)|*.*";
+                if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    File.WriteAllText(saveFileDialog.FileName, txtScreenSMTP.Text + txtScreenIMAP.Text + txtScreenFTP.Text);
+                    MessageBox.Show("Logs saved successfully!", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
         }
     }
 }
