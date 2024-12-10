@@ -54,7 +54,7 @@
 //                var mailForwardCommand = new
 //                {
 //                    Command = "MAIL FORWARD",
-//                    Mailid = 232
+//                    Mailid = 307
 //                };
 //                writer.WriteLine(JsonConvert.SerializeObject(mailForwardCommand));
 //                response = reader.ReadLine();

@@ -2,8 +2,9 @@
 using System.IO;
 using System.Net.Sockets;
 using System.Text;
+using Newtonsoft.Json;
+using System.Collections.Generic;
 using DTO;
-using DAL;
 
 namespace BLL
 {
@@ -11,20 +12,22 @@ namespace BLL
     {
         private readonly TcpClient _client;
         private readonly NetworkStream _stream;
-        private readonly Action<string> _logAction; // Action để ghi log
-        private readonly MailDAL _mailDAL; // DAL để lưu vào database
-        private readonly string _baseDir; // Thư mục lưu tài khoản email
-        private readonly string _defaultDomain; // Domain mặc định là @vku.udn.vn
+        private readonly Action<string> _logAction;
+        private readonly string _baseDir;
+        private readonly string _defaultDomain;
+
+        private string _currentUserEmail;
+        private string _senderEmail;
+        private string _recipientEmail;
 
         public FTPExcuteBLL(TcpClient client, Action<string> logAction, string baseDir, string defaultDomain)
         {
-            
             _client = client ?? throw new ArgumentNullException(nameof(client));
             _stream = _client.GetStream();
             _logAction = logAction ?? throw new ArgumentNullException(nameof(logAction));
-            _mailDAL = new MailDAL();
             _baseDir = baseDir ?? throw new ArgumentNullException(nameof(baseDir));
             _defaultDomain = defaultDomain ?? throw new ArgumentNullException(nameof(defaultDomain));
+
         }
 
         public void Start()
@@ -37,145 +40,202 @@ namespace BLL
                     string request;
                     while ((request = reader.ReadLine()) != null)
                     {
-                        var parts = request.Split(' ', 2);
-                        var command = parts[0].ToUpper();
-                        var argument = parts.Length > 1 ? parts[1] : null;
-
-                        switch (command)
-                        {
-                            case "PUT":
-                                HandlePutCommand(argument, reader, writer);
-                                break;
-
-                            case "RECV":
-                                HandleRecvCommand(argument, writer);
-                                break;
-
-                            case "FORWARD":
-                                HandleForwardCommand(argument, writer);
-                                break;
-
-                            case "QUIT":
-                                writer.WriteLine("OK");
-                                return;
-
-                            default:
-                                writer.WriteLine("INVALID COMMAND");
-                                break;
-                        }
+                        string response = ProcessCommand(request);
+                        writer.WriteLine(response);
+                        if (request.ToUpper().Contains("QUIT"))
+                            break;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error in FTP session: {ex.Message}");
+                   Log($"Error in FTP session: {ex.Message}");
                 }
             }
         }
 
-        private void HandlePutCommand(string fileName, StreamReader reader, StreamWriter writer)
+        private string ProcessCommand(string command)
         {
+            if (string.IsNullOrWhiteSpace(command))
+                return CreateJsonResponse("NO", "Invalid command format: Must be JSON");
+
             try
             {
-                if (string.IsNullOrEmpty(fileName))
-                {
-                    writer.WriteLine("ERROR: Missing file name");
-                    return;
-                }
+                if (!command.TrimStart().StartsWith("{"))
+                    return CreateJsonResponse("NO", "Invalid command format: Must be JSON");
 
-                string filePath = Path.Combine("Attachments", fileName);
-                using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                var jsonCommand = JsonConvert.DeserializeObject<Dictionary<string, string>>(command);
+
+                if (jsonCommand == null || !jsonCommand.ContainsKey("Command"))
+                    return CreateJsonResponse("NO", "Invalid command format: Missing 'Command' field");
+
+                string cmd = jsonCommand["Command"].ToUpper();
+
+                return cmd switch
                 {
-                    char[] buffer = new char[1024];
+                    "FTP" => HandleFtp(jsonCommand),
+                    "PUT" => HandlePut(jsonCommand),
+                    "RECV" => HandleRecv(jsonCommand),
+                    "FORWARD" => HandleForward(jsonCommand),
+                    "QUIT" => HandleQuit(jsonCommand),
+                    _ => CreateJsonResponse("NO", $"Invalid command: {cmd}"),
+                };
+            }
+            catch (JsonException ex)
+            {
+                return CreateJsonResponse("NO", $"Invalid JSON format: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return CreateJsonResponse("NO", $"Error processing command: {ex.Message}");
+            }
+        }
+
+        private string HandleFtp(Dictionary<string, string> jsonCommand)
+        {
+            if (!jsonCommand.ContainsKey("Sender") || !jsonCommand.ContainsKey("Recipient"))
+                return CreateJsonResponse("NO", "Missing 'Sender' or 'Recipient' field for FTP command");
+
+            _senderEmail = jsonCommand["Sender"];
+            _recipientEmail = jsonCommand["Recipient"];
+
+           Log($"FTP session started. Sender: {_senderEmail}, Recipient: {_recipientEmail}");
+            return CreateJsonResponse("OK", "FTP session initialized with user information");
+        }
+
+        private string HandlePut(Dictionary<string, string> jsonCommand)
+        {
+            if (!jsonCommand.ContainsKey("Filename"))
+                return CreateJsonResponse("NO", "Missing 'Filename' field for PUT command");
+
+            if (!jsonCommand.ContainsKey("Identify"))
+                return CreateJsonResponse("NO", "Missing 'Identify' field for PUT command");
+
+            string fileName = jsonCommand["Filename"];
+            string identify = jsonCommand["Identify"];
+            Log("Uploading file: " + fileName);
+
+            try
+            {
+                // Construct file paths
+                string senderFilePath = Path.Combine(
+                    _baseDir,
+                    _senderEmail.Replace(_defaultDomain, ""),
+                    identify,
+                    "Attachments",
+                    fileName);
+
+                string receiverFilePath = Path.Combine(
+                    _baseDir,
+                    _recipientEmail.Replace(_defaultDomain, ""),
+                    identify,
+                    "Attachments",
+                    fileName);
+
+                // Create directories for sender and receiver
+                string senderDir = Path.GetDirectoryName(senderFilePath);
+                string receiverDir = Path.GetDirectoryName(receiverFilePath);
+
+                if (string.IsNullOrEmpty(senderDir) || string.IsNullOrEmpty(receiverDir))
+                    return CreateJsonResponse("NO", "Error constructing file paths");
+
+                Directory.CreateDirectory(senderDir);
+                Directory.CreateDirectory(receiverDir);
+
+                // Increase timeout for receiving file from client
+                _client.ReceiveTimeout = 30000; // Increased timeout to 30 seconds
+
+                // Use buffered stream for efficient file write
+                using (var fileStream = new FileStream(senderFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 64 * 1024))
+                {
+                    byte[] buffer = new byte[64 * 1024]; // Larger buffer size for better performance
                     int bytesRead;
-                    while ((bytesRead = reader.Read(buffer, 0, buffer.Length)) > 0)
+
+                    while (true)
                     {
-                        fileStream.Write(Encoding.UTF8.GetBytes(buffer), 0, bytesRead);
+                        if (_stream == null || !_stream.CanRead)
+                            throw new ObjectDisposedException(nameof(NetworkStream), "NetworkStream is unavailable");
+
+                        try
+                        {
+                            while (_stream.DataAvailable && (bytesRead = _stream.Read(buffer, 0, buffer.Length)) > 0)
+                            {
+                                fileStream.Write(buffer, 0, bytesRead);
+                            }
+                            break;
+
+                        }
+                        catch (IOException ex)
+                        {
+                            Log($"IOException during file read: {ex.Message}");
+                            Thread.Sleep(100); // Sleep for a short period before retrying
+                        }
+                        //Log to check if the file is being uploaded
+                        Log($"File uploaded: {fileName}");
                     }
                 }
 
-                writer.WriteLine("OK: File uploaded successfully");
+                // Optionally copy the file to the receiver's directory
+                File.Copy(senderFilePath, receiverFilePath, overwrite: true);
+                Log("File uploaded successfully}");
+                // Return success response
+                return CreateJsonResponse("OK", "File uploaded successfully");
+            }
+            catch (ObjectDisposedException ex)
+            {
+                Log($"Stream disposed error: {ex.Message}");
+                return CreateJsonResponse("NO", "Connection closed unexpectedly");
+            }
+            catch (IOException ex)
+            {
+                Log($"IO Error uploading file: {ex.Message}");
+                return CreateJsonResponse("NO", $"IO Error uploading file: {ex.Message}");
+            }
+            catch (SocketException ex)
+            {
+                Log($"Socket Error: {ex.Message}");
+                return CreateJsonResponse("NO", $"Socket Error: {ex.Message}");
             }
             catch (Exception ex)
             {
-                writer.WriteLine($"ERROR: {ex.Message}");
+                Log($"Error uploading file: {ex.Message}");
+                return CreateJsonResponse("NO", $"Error uploading file: {ex.Message}");
             }
         }
 
-        private void HandleRecvCommand(string fileName, StreamWriter writer)
+
+
+
+        private string HandleRecv(Dictionary<string, string> jsonCommand)
         {
-            try
-            {
-                if (string.IsNullOrEmpty(fileName))
-                {
-                    writer.WriteLine("ERROR: Missing file name");
-                    return;
-                }
+            if (!jsonCommand.ContainsKey("FileName"))
+                return CreateJsonResponse("NO", "Missing 'FileName' field for PUT command");
 
-                string filePath = Path.Combine("Attachments", fileName);
-                if (!File.Exists(filePath))
-                {
-                    writer.WriteLine("ERROR: File not found");
-                    return;
-                }
-
-                using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-                {
-                    byte[] buffer = new byte[1024];
-                    int bytesRead;
-                    while ((bytesRead = fileStream.Read(buffer, 0, buffer.Length)) > 0)
-                    {
-                        _stream.Write(buffer, 0, bytesRead);
-                    }
-                }
-
-                writer.WriteLine("OK: File sent successfully");
-            }
-            catch (Exception ex)
-            {
-                writer.WriteLine($"ERROR: {ex.Message}");
-            }
+            return CreateJsonResponse("OK", "FTP session initialized with user information");
         }
 
-        private void HandleForwardCommand(string mailId, StreamWriter writer)
+        private string HandleForward(Dictionary<string, string> jsonCommand)
         {
-            try
-            {
-                if (string.IsNullOrEmpty(mailId))
-                {
-                    writer.WriteLine("ERROR: Missing mail ID");
-                    return;
-                }
+            if (!jsonCommand.ContainsKey("FileName"))
+                return CreateJsonResponse("NO", "Missing 'FileName' field for PUT command");
 
-                var mail = _mailDAL.GetMailById(int.Parse(mailId), "owner"); // Replace "owner" with actual owner
-                if (mail != null)
-                {
-                    if (!string.IsNullOrEmpty(mail.Attachment))
-                    {
-                        string attachmentPath = Path.Combine("Attachments", mail.Attachment);
-                        if (File.Exists(attachmentPath))
-                        {
-                            writer.WriteLine("OK: Forwarding mail with attachment");
-                            HandleRecvCommand(mail.Attachment, writer);
-                        }
-                        else
-                        {
-                            writer.WriteLine("ERROR: Attachment not found");
-                        }
-                    }
-                    else
-                    {
-                        writer.WriteLine("OK: Forwarding mail without attachment");
-                    }
-                }
-                else
-                {
-                    writer.WriteLine("ERROR: Mail not found");
-                }
-            }
-            catch (Exception ex)
-            {
-                writer.WriteLine($"ERROR: {ex.Message}");
-            }
+            return CreateJsonResponse("OK", "FTP session initialized with user information");
+        }
+
+        private string HandleQuit(Dictionary<string, string> jsonCommand)
+        {
+
+         return CreateJsonResponse("OK", "FTP session ended");
+        }
+        private string CreateJsonResponse(string status, string messagel)
+        {
+            ServerResponse serverResponse = new ServerResponse(status, messagel);
+            return serverResponse.ToJson();
+
+        }
+
+        private void Log(string message)
+        {
+            _logAction?.Invoke(message);
         }
     }
 }

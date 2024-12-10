@@ -13,8 +13,8 @@ namespace DTO
         public int? Reply { get; set; }
         public string Owner { get; set; }
         public bool IsRead { get; set; }
-        public string Attachment { get; set; }
-        public string Subject { get; set; }
+        public string? Attachment { get; set; }
+        public string? Subject { get; set; }
         public string Content { get; set; }
         public DateTime? DeletedAt { get; set; }
 

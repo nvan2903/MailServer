@@ -133,25 +133,60 @@ namespace DAL
         public bool InsertMail(Mail mail)
         {
             string sql = "INSERT INTO mail (created_at, sender, receiver, owner, is_read, attachment, subject, content, reply, deleted_at) " +
+                         "VALUES (@CreatedAt, @Sender, @Receiver, @Owner, @IsRead, @Attachment, @Subject, @Content, NULL, NULL)";
+            try
+            {
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@CreatedAt", mail.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
+                    cmd.Parameters.AddWithValue("@Sender", mail.Sender);
+                    cmd.Parameters.AddWithValue("@Receiver", mail.Receiver);
+                    cmd.Parameters.AddWithValue("@Owner", mail.Owner);
+                    cmd.Parameters.AddWithValue("@IsRead", mail.IsRead ? 1 : 0);
+                    cmd.Parameters.AddWithValue("@Attachment", mail.Attachment ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Subject", mail.Subject ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Content", mail.Content ?? (object)DBNull.Value);
+
+
+
+                    OpenConnection();
+                    int rowsAffected = cmd.ExecuteNonQuery();
+                    return rowsAffected > 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in InsertMail: " + ex.Message);
+                return false;
+            }
+            finally
+            {
+                CloseConnection();
+            }
+        }
+
+
+
+        public bool InsertReplyMail(Mail mail)
+        {
+            string sql = "INSERT INTO mail (created_at, sender, receiver, owner, is_read, attachment, subject, content, reply, deleted_at) " +
                          "VALUES (@CreatedAt, @Sender, @Receiver, @Owner, @IsRead, @Attachment, @Subject, @Content, @Reply, NULL)";
             try
             {
                 using (SqlCommand cmd = new SqlCommand(sql, conn))
                 {
-                    // Chuyển đổi CreatedAt sang định dạng yyyy-MM-dd HH:mm:ss
                     cmd.Parameters.AddWithValue("@CreatedAt", mail.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
-
-                    // Thêm các tham số khác
                     cmd.Parameters.AddWithValue("@Sender", mail.Sender);
                     cmd.Parameters.AddWithValue("@Receiver", mail.Receiver);
                     cmd.Parameters.AddWithValue("@Owner", mail.Owner);
                     cmd.Parameters.AddWithValue("@IsRead", mail.IsRead ? 1 : 0);
-                    cmd.Parameters.AddWithValue("@Attachment", string.IsNullOrEmpty(mail.Attachment) ? DBNull.Value : mail.Attachment);
-                    cmd.Parameters.AddWithValue("@Subject", string.IsNullOrEmpty(mail.Subject) ? DBNull.Value : mail.Subject);
-                    cmd.Parameters.AddWithValue("@Content", mail.Content);
-                    cmd.Parameters.AddWithValue("@Reply", mail.Reply == null ? DBNull.Value : mail.Reply);
+                    cmd.Parameters.AddWithValue("@Attachment", mail.Attachment ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Subject", mail.Subject ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Content", mail.Content ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Reply", mail.Reply);
 
-                    // Mở kết nối và thực thi
+
+
                     OpenConnection();
                     int rowsAffected = cmd.ExecuteNonQuery();
                     return rowsAffected > 0;

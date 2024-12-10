@@ -54,7 +54,7 @@
 //                var replyCommand = new
 //                {
 //                    Command = "REPLY",
-//                    Mailid = 232
+//                    Mailid = 307
 //                };
 //                writer.WriteLine(JsonConvert.SerializeObject(replyCommand));
 //                response = reader.ReadLine();
@@ -64,7 +64,7 @@
 //                var dataCommand = new
 //                {
 //                    Command = "DATA",
-//                    Subject = "Reply Mail",
+//                    Subject = "Trung Reply Mail To Van",
 //                    Content = "Trung has reply"
 //                };
 //                writer.WriteLine(JsonConvert.SerializeObject(dataCommand));

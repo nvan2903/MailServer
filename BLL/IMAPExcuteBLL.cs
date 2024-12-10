@@ -44,7 +44,6 @@ namespace BLL
                     using StreamWriter writer = new(stream, Encoding.UTF8) { AutoFlush = true };
 
                     Log("Connection established.");
-                    writer.WriteLine("* OK IMAP Server Ready");
                     Log("* OK IMAP Server Ready");
 
                     string line;
@@ -73,16 +72,16 @@ namespace BLL
         private string ProcessCommand(string command)
         {
             if (string.IsNullOrWhiteSpace(command))
-                return "BAD Empty command received";
+                return CreateJsonResponse("BAD", "Syntax error, command unrecognized");
 
             try
             {
                 if (!command.TrimStart().StartsWith("{"))
-                    return "BAD Invalid command format: Must be JSON";
+                    return CreateJsonResponse("BAD", "Invalid JSON format");
 
                 var jsonCommand = JsonConvert.DeserializeObject<Dictionary<string, string>>(command);
                 if (jsonCommand == null || !jsonCommand.ContainsKey("Command"))
-                    return "BAD Invalid JSON format";
+                    return CreateJsonResponse("BAD", "Invalid JSON format: Missing 'Command' key");
 
                 string cmd = jsonCommand["Command"].ToUpper();
 
@@ -98,31 +97,31 @@ namespace BLL
                     "DELETE" => HandleDelete(jsonCommand),
                     "RESTORE" => HandleRestore(jsonCommand),
                     "LOGOUT" => HandleLogout(jsonCommand),
-                    _ => "BAD Command unrecognized"
+                    _ => CreateJsonResponse("BAD", "Command unrecognized")
                 };
             }
             catch (JsonException ex)
             {
-                return $"BAD Error processing command: {ex.Message}";
+                return CreateJsonResponse("BAD", $"Error processing command: {ex.Message}");
             }
             catch (Exception ex)
             {
-                return $"BAD Internal server error: {ex.Message}";
+                return CreateJsonResponse("BAD", $"Internal server error: {ex.Message}");
             }
         }
 
         private string HandleCapability(Dictionary<string, string> jsonCommand)
         {
-            return "OK CAPABILITY completed";
+            return CreateJsonResponse("OK", "CAPABILITY completed");
         }
 
         private string HandleLogin(Dictionary<string, string> jsonCommand)
         {
             if (_isAuthenticated)
-                return "NO LOGIN failed - Already authenticated";
+                return CreateJsonResponse("NO", "Already authenticated");
 
             if (!jsonCommand.ContainsKey("Username") || !jsonCommand.ContainsKey("Password"))
-                return "BAD LOGIN requires Username and Password";
+                return CreateJsonResponse("BAD", "LOGIN requires Username and Password");
 
             string username = jsonCommand["Username"] + _defaultDomain;
             string password = SecurityBLL.Sha256(jsonCommand["Password"]);
@@ -133,10 +132,10 @@ namespace BLL
             {
                 _currentUser = account;
                 _isAuthenticated = true;
-                return "OK LOGIN completed";
+                return CreateJsonResponse("OK", "LOGIN completed");
             }
 
-            return "NO LOGIN failed - Invalid credentials";
+            return CreateJsonResponse("NO", "LOGIN failed - Invalid credentials");
         }
 
         private string HandleRegister(Dictionary<string, string> jsonCommand)
@@ -145,12 +144,12 @@ namespace BLL
                 !jsonCommand.ContainsKey("Fullname") ||
                 !jsonCommand.ContainsKey("Password"))
             {
-                return "BAD REGISTER requires Username, Fullname, and Password";
+                return CreateJsonResponse("BAD", "REGISTER requires Username, Fullname, and Password");
             }
 
             string username = jsonCommand["Username"];
             if (username.Length < 5 || username.Length > 50)
-                return "BAD Username length must be between 5 and 50 characters";
+                return CreateJsonResponse("BAD", "Username length must be between 5 and 50 characters");
 
             string fullname = jsonCommand["Fullname"];
             string password = SecurityBLL.Sha256(jsonCommand["Password"]);
@@ -175,58 +174,58 @@ namespace BLL
                         Directory.CreateDirectory(userDir);
 
                     Log($"Directory created: {userDir}");
-                    return "OK REGISTER completed";
+                    return CreateJsonResponse("OK", "REGISTER completed");
                 }
                 catch (Exception ex)
                 {
                     Log($"Error creating directory: {ex.Message}");
-                    return "NO REGISTER failed - Unable to create directory";
+                    return CreateJsonResponse("NO", "REGISTER failed - Unable to create directory");
                 }
             }
 
-            return "NO REGISTER failed - Account already exists";
+            return CreateJsonResponse("NO", "REGISTER failed - Account already exists");
         }
 
         private string HandleChangeName(Dictionary<string, string> jsonCommand)
         {
             if (!_isAuthenticated)
-                return "NO Not authenticated";
+                return CreateJsonResponse("NO", "Not authenticated");
 
             if (!jsonCommand.ContainsKey("Newfullname"))
-                return "BAD CHNAME requires Newfullname";
+                return CreateJsonResponse("BAD", "CHNAME requires Newfullname");
 
             string newName = jsonCommand["Newfullname"];
 
             if (_accountDAL.UpdateFullName(_currentUser.EmailAddress, newName))
-                return "OK CHNAME completed";
+                return CreateJsonResponse("OK", "CHNAME completed");
 
-            return "NO CHNAME failed";
+            return CreateJsonResponse("NO", "CHNAME failed");
         }
 
         private string HandleChangePassword(Dictionary<string, string> jsonCommand)
         {
             if (!_isAuthenticated)
-                return "NO Not authenticated";
+                return CreateJsonResponse("NO", "Not authenticated");
 
             if (!jsonCommand.ContainsKey("Oldpassword") || !jsonCommand.ContainsKey("Newpassword"))
-                return "BAD CHPASS requires Oldpassword and Newpassword";
+                return CreateJsonResponse("BAD", "CHPASS requires Oldpassword and Newpassword");
 
             string oldPassword = SecurityBLL.Sha256(jsonCommand["Oldpassword"]);
             string newPassword = SecurityBLL.Sha256(jsonCommand["Newpassword"]);
 
             if (_accountDAL.UpdatePassword(_currentUser.EmailAddress, oldPassword, newPassword))
-                return "OK CHPASS completed";
+                return CreateJsonResponse("OK", "CHPASS completed");
 
-            return "NO CHPASS failed";
+            return CreateJsonResponse("NO", "CHPASS failed");
         }
 
         private string HandleSelect(Dictionary<string, string> jsonCommand)
         {
             if (!_isAuthenticated)
-                return "NO Not authenticated";
+                return CreateJsonResponse("NO", "Not authenticated");
 
             if (!jsonCommand.ContainsKey("Mailbox"))
-                return "BAD SELECT requires Mailbox";
+                return CreateJsonResponse("BAD", "SELECT requires Mailbox");
 
             string mailBox = jsonCommand["Mailbox"].ToUpper();
             try
@@ -248,26 +247,26 @@ namespace BLL
                     string subject = row["subject"]?.ToString() ?? "N/A";
                     Log($"MailId: {mailId}, From: {sender}, To: {receiver}, Subject: {subject}");
                 }
-
-                return "OK SELECT completed";
+                
+                return CreateJsonResponse("OK", "SELECT completed");
             }
             catch (Exception ex)
             {
-                return $"NO SELECT failed - {ex.Message}";
+                return CreateJsonResponse("NO", $"SELECT failed: {ex.Message}");
             }
         }
 
         private string HandleFetch(Dictionary<string, string> jsonCommand)
         {
             if (!_isAuthenticated)
-                return "NO Not authenticated";
+               return CreateJsonResponse("NO", "Not authenticated");
 
             if (!jsonCommand.ContainsKey("Mailid") || !int.TryParse(jsonCommand["Mailid"], out int mailId))
-                return "BAD FETCH requires a valid Mailid";
+                return CreateJsonResponse("BAD", "FETCH requires a valid Mailid");
 
             Log($"Fetching mail with ID: {mailId} for user: {_currentUser.EmailAddress}");
 
-            var mail = _mailDAL.GetMailById(mailId, _currentUser.EmailAddress);
+            Mail mail  = _mailDAL.GetMailById(mailId, _currentUser.EmailAddress);
 
             if (mail != null)
             {
@@ -276,67 +275,65 @@ namespace BLL
                 if (!string.IsNullOrEmpty(mail.Content) && File.Exists(mail.Content))
                 {
                     content = File.ReadAllText(mail.Content);
-                }
-
-                // Tạo đối tượng JSON
-                var emailData = new
-                {
-                    mail.Id,
-                    mail.Sender,
-                    mail.Receiver,
-                    mail.Subject,
-                    mail.CreatedAt,
-                    mail.IsRead,
-                    mail.Attachment,
-                    Content = content
-                };
-                // Chuyển thành JSON
-                string jsonResponse = JsonConvert.SerializeObject(emailData, Formatting.Indented);
-                // Gửi trả JSON
-                return $"200 OK {jsonResponse}";
-
+                    mail.Content = content;
+                    List<Mail> mails = new List<Mail> { mail };
+                    return CreateJsonResponse("OK", "FETCH completed", mails);
+                }     
             }
 
             Log("Mail not found or access denied.");
-            return "NO FETCH failed";
+            return CreateJsonResponse("NO", "FETCH failed");
         }
 
 
         private string HandleDelete(Dictionary<string, string> jsonCommand)
         {
             if (!_isAuthenticated)
-                return "NO Not authenticated";
+                return CreateJsonResponse("NO", "Not authenticated");
 
             if (!jsonCommand.ContainsKey("Mailid") || !int.TryParse(jsonCommand["Mailid"], out int mailId))
-                return "BAD DELETE requires a valid Mailid";
-
+                return CreateJsonResponse("BAD", "DELETE requires a valid Mailid");
             if (_mailDAL.MarkMailAsDeleted(mailId, _currentUser.EmailAddress))
-                return "OK DELETE completed";
+                return CreateJsonResponse("OK", "DELETE completed");
 
-            return "NO DELETE failed";
+            return CreateJsonResponse("NO", "DELETE failed");
         }
 
         private string HandleRestore(Dictionary<string, string> jsonCommand)
         {
             if (!_isAuthenticated)
-                return "NO Not authenticated";
+                return CreateJsonResponse("NO", "Not authenticated");
             if (!jsonCommand.ContainsKey("Mailid") || !int.TryParse(jsonCommand["Mailid"], out int mailId))
-                return "BAD RESTORE requires a valid Mailid";
+                return CreateJsonResponse("BAD", "RESTORE requires a valid Mailid");
 
             if (_mailDAL.RestoreMail(mailId, _currentUser.EmailAddress))
-                return "OK RESTORE completed";
+                return CreateJsonResponse("OK", "RESTORE completed");
 
-            return "NO RESTORE failed";
+            return CreateJsonResponse("NO", "RESTORE failed");
         }
 
         private string HandleLogout(Dictionary<string, string> jsonCommand)
         {
             if (!_isAuthenticated)
-                return "NO Not authenticated";
+                return CreateJsonResponse("NO", "Not authenticated");
 
             _currentUser = null;
             _isAuthenticated = false;
-            return "OK LOGOUT completed";
+            return CreateJsonResponse("OK", "LOGOUT completed");
+        }
+
+        private string CreateJsonResponse(string status, string messagel)
+        {
+            ServerResponse serverResponse = new ServerResponse(status, messagel);
+            return serverResponse.ToJson();
+
+        }
+
+        private string CreateJsonResponse(string status, string message, List<Mail> Mails)
+        {
+            ServerResponse serverResponse = new ServerResponse(status, message, Mails);
+            return serverResponse.ToJson();
+
         }
 
         private void Log(string message)

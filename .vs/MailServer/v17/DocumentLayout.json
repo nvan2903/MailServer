@@ -1,24 +1,7 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "D:\\Source-CSharp\\MailServer\\",
-  "Documents": [
-    {
-      "AbsoluteMoniker": "D:0:0:{72EEF59D-BC49-43FD-A63A-2321349BF064}|GUI\\GUI.csproj|d:\\source-csharp\\mailserver\\gui\\formhome.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
-      "RelativeMoniker": "D:0:0:{72EEF59D-BC49-43FD-A63A-2321349BF064}|GUI\\GUI.csproj|solutionrelative:gui\\formhome.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{3CE0BC25-9258-4BC7-A2BF-BC2E44F57E0A}|Test\\Test.csproj|d:\\source-csharp\\mailserver\\test\\clentsmtp.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3CE0BC25-9258-4BC7-A2BF-BC2E44F57E0A}|Test\\Test.csproj|solutionrelative:test\\clentsmtp.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{3CE0BC25-9258-4BC7-A2BF-BC2E44F57E0A}|Test\\Test.csproj|d:\\source-csharp\\mailserver\\test\\clientimap.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3CE0BC25-9258-4BC7-A2BF-BC2E44F57E0A}|Test\\Test.csproj|solutionrelative:test\\clientimap.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{72EEF59D-BC49-43FD-A63A-2321349BF064}|GUI\\GUI.csproj|d:\\source-csharp\\mailserver\\gui\\formhome.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{72EEF59D-BC49-43FD-A63A-2321349BF064}|GUI\\GUI.csproj|solutionrelative:gui\\formhome.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    }
-  ],
+  "Documents": [],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
@@ -26,62 +9,11 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": -1,
           "Children": [
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "FormHome.cs [Design]",
-              "DocumentMoniker": "D:\\Source-CSharp\\MailServer\\GUI\\FormHome.cs",
-              "RelativeDocumentMoniker": "GUI\\FormHome.cs",
-              "ToolTip": "D:\\Source-CSharp\\MailServer\\GUI\\FormHome.cs [Design]",
-              "RelativeToolTip": "GUI\\FormHome.cs [Design]",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-12-01T11:29:02.513Z",
-              "EditorCaption": " [Design]"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "FormHome.cs",
-              "DocumentMoniker": "D:\\Source-CSharp\\MailServer\\GUI\\FormHome.cs",
-              "RelativeDocumentMoniker": "GUI\\FormHome.cs",
-              "ToolTip": "D:\\Source-CSharp\\MailServer\\GUI\\FormHome.cs",
-              "RelativeToolTip": "GUI\\FormHome.cs",
-              "ViewState": "AgIAALwAAAAAAAAAAAAWwNAAAAARAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-12-01T11:16:35.959Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "ClientIMAP.cs",
-              "DocumentMoniker": "D:\\Source-CSharp\\MailServer\\Test\\ClientIMAP.cs",
-              "RelativeDocumentMoniker": "Test\\ClientIMAP.cs",
-              "ToolTip": "D:\\Source-CSharp\\MailServer\\Test\\ClientIMAP.cs",
-              "RelativeToolTip": "Test\\ClientIMAP.cs",
-              "ViewState": "AgIAAGoAAAAAAAAAAAAAAHIAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-12-01T11:09:56.907Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "ClentSMTP.cs",
-              "DocumentMoniker": "D:\\Source-CSharp\\MailServer\\Test\\ClentSMTP.cs",
-              "RelativeDocumentMoniker": "Test\\ClentSMTP.cs",
-              "ToolTip": "D:\\Source-CSharp\\MailServer\\Test\\ClentSMTP.cs",
-              "RelativeToolTip": "Test\\ClentSMTP.cs",
-              "ViewState": "AgIAAD8AAAAAAAAAAAAYwEQAAAAjAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-12-01T11:05:32.119Z",
-              "EditorCaption": ""
             }
           ]
         }

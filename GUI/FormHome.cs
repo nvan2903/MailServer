@@ -1,22 +1,12 @@
-﻿using System;
-using System.Drawing;
-using System.IO;
-using System.Net;
-using System.Net.Sockets;
-using System.Threading;
-using System.Windows.Forms;
-using BLL;
+﻿using BLL;
 using DotNetEnv;
+using System.Diagnostics;
 
 namespace GUI
 {
     public partial class FormHome : Form
     {
-        private TcpListener smtpServer, imapServer, ftpServer;
-        private Thread smtpThread, imapThread, ftpThread;
-        private bool isRunning = false;
-        private int smtpConnectionCount = 0, imapConnectionCount = 0, ftpConnectionCount = 0;
-        private string baseDir, defaultDomain;
+        private ThreadBLL threadBLL;
 
         public FormHome()
         {
@@ -30,8 +20,27 @@ namespace GUI
             try
             {
                 Env.TraversePath().Load();
-                baseDir = Env.GetString("BASE_DIRECTORY") ?? "C:\\ServerBaseDir";
-                defaultDomain = Env.GetString("DEFAULT_DOMAIN") ?? "example.com";
+                //string baseDir = Env.GetString("BASE_DIRECTORY") ?? "C:\\ServerBaseDir";
+                //string defaultDomain = Env.GetString("DEFAULT_DOMAIN") ?? "example.com";
+
+
+                string baseDir = Env.GetString("BASE_DIRECTORY");
+                string defaultDomain = Env.GetString("DEFAULT_DOMAIN");
+
+                if (baseDir == "")
+                {
+                    throw new Exception("BASE_DIRECTORY is required in .env file");
+                }
+
+             
+                Debug.WriteLine($"BASE_DIRECTORY: {baseDir}");
+
+                threadBLL = new ThreadBLL(baseDir, defaultDomain)
+                {
+                    LogSMTP = LogSMTP,
+                    LogIMAP = LogIMAP,
+                    LogFTP = LogFTP
+                };
             }
             catch (Exception ex)
             {
@@ -43,8 +52,7 @@ namespace GUI
         {
             try
             {
-                StartServers();
-                StartListeningThreads();
+                threadBLL.StartServers();
                 UpdateServerStatus(lblSMTPStatus, true);
                 UpdateServerStatus(lblIMAPStatus, true);
                 UpdateServerStatus(lblFTPStatus, true);
@@ -58,114 +66,44 @@ namespace GUI
             }
         }
 
-
-
-        private void StartServers()
-        {
-            smtpServer = new TcpListener(IPAddress.Any, 25);
-            imapServer = new TcpListener(IPAddress.Any, 143);
-            ftpServer = new TcpListener(IPAddress.Any, 21);
-
-            smtpServer.Start();
-            imapServer.Start();
-            ftpServer.Start();
-
-            isRunning = true;
-        }
-
         private void btnStopServer_Click(object sender, EventArgs e)
         {
-            StopServers();
-            UpdateServerStatus(lblSMTPStatus, false);
-            UpdateServerStatus(lblIMAPStatus, false);
-            UpdateServerStatus(lblFTPStatus, false);
-            btnStartServer.Enabled = true;
-            btnStopServer.Enabled = false;
-        }
-
-        private void StartListeningThreads()
-        {
-            smtpThread = new Thread(() =>
-            {
-                while (isRunning)
-                {
-                    try
-                    {
-                        TcpClient client = smtpServer.AcceptTcpClient();
-                        Interlocked.Increment(ref smtpConnectionCount);
-                        var smtpExecuteBLL = new SMTPExecuteBLL(client, LogSMTP, baseDir, defaultDomain);
-                        smtpExecuteBLL.Start();
-                    }
-                    catch (SocketException) { break; }
-                }
-            });
-
-            imapThread = new Thread(() =>
-            {
-                while (isRunning)
-                {
-                    try
-                    {
-                        TcpClient client = imapServer.AcceptTcpClient();
-                        Interlocked.Increment(ref imapConnectionCount);
-                        var imapExecuteBLL = new IMAPExecuteBLL(client, LogIMAP, baseDir, defaultDomain);
-                        imapExecuteBLL.Start();
-                    }
-                    catch (SocketException) { break; }
-                }
-            });
-
-            ftpThread = new Thread(() =>
-            {
-                while (isRunning)
-                {
-                    try
-                    {
-                        TcpClient client = ftpServer.AcceptTcpClient();
-                        Interlocked.Increment(ref ftpConnectionCount);
-                        var ftpExecuteBLL = new FTPExcuteBLL(client, LogFTP, baseDir, defaultDomain);
-                        ftpExecuteBLL.Start();
-                    }
-                    catch (SocketException) { break; }
-                }
-            });
-
-            smtpThread.IsBackground = true;
-            imapThread.IsBackground = true;
-            ftpThread.IsBackground = true;
-
-            smtpThread.Start();
-            imapThread.Start();
-            ftpThread.Start();
-        }
-
-        private void StopServers()
-        {
-            isRunning = false;
-
             try
             {
-                smtpServer?.Stop();
-                imapServer?.Stop();
-                ftpServer?.Stop();
+                threadBLL.StopServers();
+                UpdateServerStatus(lblSMTPStatus, false);
+                UpdateServerStatus(lblIMAPStatus, false);
+                UpdateServerStatus(lblFTPStatus, false);
+                btnStartServer.Enabled = true;
+                btnStopServer.Enabled = false;
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error stopping servers: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-
-            smtpThread?.Join();
-            imapThread?.Join();
-            ftpThread?.Join();
-
-            smtpConnectionCount = 0;
-            imapConnectionCount = 0;
-            ftpConnectionCount = 0;
         }
 
-        private void LogSMTP(string message) => UpdateTextBox(txtScreenSMTP, message);
-        private void LogIMAP(string message) => UpdateTextBox(txtScreenIMAP, message);
-        private void LogFTP(string message) => UpdateTextBox(txtScreenFTP, message);
+        private void FormHome_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            try
+            {
+                threadBLL.StopServers();
+            }
+            catch (Exception) { }
+        }
+
+        private void UpdateServerStatus(Label label, bool isRunning)
+        {
+            label.Text = isRunning ? "Running" : "Stopped";
+            label.ForeColor = isRunning ? Color.Green : Color.Red;
+        }
+
+        private void AppendServerStartMessages()
+        {
+            txtScreenSMTP.AppendText("SMTP Server is starting to listen...\n");
+            txtScreenIMAP.AppendText("IMAP Server is starting to listen...\n");
+            txtScreenFTP.AppendText("FTP Server is starting to listen...\n");
+        }
 
         private void UpdateTextBox(TextBox textBox, string message)
         {
@@ -184,22 +122,6 @@ namespace GUI
             }
         }
 
-        private void UpdateServerStatus(Label label, bool isRunning)
-        {
-            label.Text = isRunning ? "Running" : "Stopped";
-            label.ForeColor = isRunning ? Color.Green : Color.Red;
-        }
-
-        private void AppendServerStartMessages()
-        {
-            txtScreenSMTP.AppendText("SMTP Server is starting to listen...\n");
-            txtScreenIMAP.AppendText("IMAP Server is starting to listen...\n");
-            txtScreenFTP.AppendText("FTP Server is starting to listen...\n");
-        }
-
-
-        private void FormHome_FormClosing(object sender, FormClosingEventArgs e) => StopServers();
-
         private void btnSaveLog_Click(object sender, EventArgs e)
         {
             using (SaveFileDialog saveFileDialog = new SaveFileDialog())
@@ -212,5 +134,9 @@ namespace GUI
                 }
             }
         }
+
+        private void LogSMTP(string message) => UpdateTextBox(txtScreenSMTP, message);
+        private void LogIMAP(string message) => UpdateTextBox(txtScreenIMAP, message);
+        private void LogFTP(string message) => UpdateTextBox(txtScreenFTP, message);
     }
 }

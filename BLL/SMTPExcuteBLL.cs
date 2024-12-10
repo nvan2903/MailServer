@@ -7,6 +7,7 @@ using Newtonsoft.Json;
 using DAL;
 using DTO;
 using System.Reflection;
+using System.Xml.Linq;
 
 namespace BLL
 {
@@ -52,7 +53,9 @@ namespace BLL
                     using StreamWriter writer = new(stream, Encoding.UTF8) { AutoFlush = true };
 
                     Log("Connection established.");
-                    writer.WriteLine("220 SMTP Server Ready");
+                    var welcomeMessage = CreateJsonResponse("220", "Welcome to SMTP Server");
+                    writer.WriteLine(welcomeMessage);
+
 
                     string line;
                     while ((line = reader.ReadLine()) != null)
@@ -80,16 +83,16 @@ namespace BLL
         private string ProcessCommand(string command)
         {
             if (string.IsNullOrWhiteSpace(command))
-                return "500 Syntax error, command unrecognized";
+                return CreateJsonResponse("BAD", "Syntax error, command unrecognized");
 
             try
             {
                 if (!command.TrimStart().StartsWith("{"))
-                    return "500 Invalid command format: Must be JSON";
+                    return CreateJsonResponse("BAD", "Invalid JSON format");
 
                 var jsonCommand = JsonConvert.DeserializeObject<Dictionary<string, string>>(command);
                 if (jsonCommand == null || !jsonCommand.ContainsKey("Command"))
-                    return "500 Invalid JSON format";
+                    return CreateJsonResponse("BAD", "Invalid JSON format: Missing 'Command' key");
 
                 string cmd = jsonCommand["Command"].ToUpper();
 
@@ -105,148 +108,179 @@ namespace BLL
                     "DATA" => HandleDataCommand(jsonCommand),
                     "ATTACH" => HandleAttach(jsonCommand),
                     "QUIT" => HandleQuit(),
-                    _ => "500 Command unrecognized"
+                    _ => CreateJsonResponse("BAD", "Command unrecognized")
                 };
             }
             catch (JsonException ex)
             {
-                return $"500 Error processing command: {ex.Message}";
+                return CreateJsonResponse("BAD", $"Error processing command: {ex.Message}");
             }
         }
 
         // Handle HELO Command
         private string HandleHelo(Dictionary<string, string> command)
         {
-            return "250 Hello, pleased to meet you";
+            return CreateJsonResponse("OK", "Hello, this is SMTP Server");
         }
 
         // Handle MAIL FROM Command
         private string HandleMailFrom(Dictionary<string, string> command)
         {
             if (!command.ContainsKey("Email"))
-                return "500 Missing 'Email' in MAIL FROM command";
+                return CreateJsonResponse("BAD", "Missing 'Email' in MAIL FROM command");
 
             _senderEmail = command["Email"];
             if (!IsValidEmail(_senderEmail))
-                return "550 Invalid sender email address";
+                return CreateJsonResponse("BAD", "Invalid sender email address");
 
-            return "250 OK";
+            return CreateJsonResponse("OK", "Sender email address accepted");
         }
 
         // Handle RCPT TO Command
         private string HandleRcptTo(Dictionary<string, string> command)
         {
             if (!command.ContainsKey("Email"))
-                return "500 Missing 'Email' in RCPT TO command";
+                return CreateJsonResponse("BAD", "Missing 'Email' in RCPT TO command");
 
             _receiverEmail = command["Email"];
             if (!IsValidEmail(_receiverEmail))
-                return "550 Invalid receiver email address";
+                return CreateJsonResponse("BAD", "Invalid receiver email address");
 
-            return "250 OK";
+            return CreateJsonResponse("OK", "Receiver email address accepted");
         }
 
         // Handle FORWARD FROM Command
         private string HandleForwardFrom(Dictionary<string, string> command)
         {
             if (!command.ContainsKey("Email"))
-                return "500 Missing 'Email' in FORWARD FROM command";
+                return CreateJsonResponse("BAD", "Missing 'Email' in FORWARD FROM command");
 
             _forwardFrom = command["Email"];
             if (!IsValidEmail(_forwardFrom))
-                return "550 Invalid forward from email address";
+                return CreateJsonResponse("BAD", "Invalid forward from email address");
 
-            return "250 OK";
+            return CreateJsonResponse("OK", "Forward from email address accepted");
         }
 
         // Handle FORWARD TO Command
         private string HandleForwardTo(Dictionary<string, string> command)
         {
             if (!command.ContainsKey("Email"))
-                return "500 Missing 'Email' in FORWARD TO command";
+                return CreateJsonResponse("BAD", "Missing 'Email' in FORWARD TO command");
 
             _forwardTo = command["Email"];
             if (!IsValidEmail(_forwardTo))
-                return "550 Invalid forward to email address";
+                return CreateJsonResponse("BAD", "Invalid forward to email address");
 
-            return "250 OK";
+            return CreateJsonResponse("OK", "Forward to email address accepted");
         }
 
         // Handle MAIL FORWARD Command
         private string HandleMailForward(Dictionary<string, string> command)
         {
             if (!command.ContainsKey("Mailid"))
-                return "500 Missing 'Mailid' in MAIL FORWARD command";
+                return CreateJsonResponse("BAD", "Missing 'Mailid' in MAIL FORWARD command");
 
             _forwardMailId = int.Parse(command["Mailid"]);
             _isForwardMail = true;
 
-            return "250 OK";
+            string identify = DateTime.Now.ToString("yyyyMMdd_HHmmss");  // Unique identifier for each email
+            try
+            {
+                SaveForwardMail(_forwardMailId, _forwardFrom, _forwardTo, identify);
+                Log($"{identify}: Mail forwarded successfully");
+                return CreateJsonResponse("OK", "Forward mail successfully", identify);
+            }
+            catch (Exception ex)
+            {
+                Log($"Error in HandleMailForward: {ex.Message}");
+                return CreateJsonResponse("BAD", $"Error forwarding mail: {ex.Message}");
+            }
         }
 
         // Handle REPLY Command
         private string HandleReply(Dictionary<string, string> command)
         {
             if (!command.ContainsKey("Mailid"))
-                return "500 Missing 'Email' in REPLY command";
+                return CreateJsonResponse("BAD", "Missing 'Mailid' in REPLY command");
 
             _replyMailId = int.Parse(command["Mailid"]);
 
-            return "250 OK";
+            return CreateJsonResponse("OK", "Reply mail initialized");
         }
 
         // Handle DATA Command
         private string HandleDataCommand(Dictionary<string, string> command)
         {
-            if (!command.ContainsKey("Subject") || !command.ContainsKey("Content"))
-                return "500 Missing 'Subject' or 'Content' in DATA command";
+            try
+            {
+                if (!command.ContainsKey("Subject") || !command.ContainsKey("Content"))
+                {
+                    return CreateJsonResponse("BAD", "Missing 'Subject' or 'Content' in DATA command");
+                }
 
-            _emailSubject = command["Subject"];
-            _emailContent = command["Content"];
+                _emailSubject = command["Subject"];
+                _emailContent = command["Content"];
+                data = true;
 
-            data = true;
+                Log($"Data command processed successfully. Subject: {_emailSubject}, Content Length: {_emailContent.Length}");
 
-            return "250 OK";
+                string identify = DateTime.Now.ToString("yyyyMMdd_HHmmss");  // Unique identifier for each email
+
+             
+                    if (_replyMailId == 0) // If reply mail id is 0, then it is a normal mail
+                    {
+                        // save to sender mail box and database
+                        SaveContentMail(_senderEmail, _emailContent, identify);
+                        SaveEmailToDatabase(_senderEmail, _receiverEmail, _senderEmail, _attachmentPath, _emailSubject, _emailContentPath);
+                        //save to receiver mail box and database
+                        SaveContentMail(_receiverEmail, _emailContent, identify);
+                        SaveEmailToDatabase(_senderEmail, _receiverEmail, _receiverEmail, _attachmentPath, _emailSubject, _emailContentPath);
+                        return CreateJsonResponse("OK", "Send mail successfully", identify);
+                    }
+                    else // If reply mail id is not 0, then it is a reply mail
+                    {
+
+                        SaveContentMail(_senderEmail, _emailContent, identify);
+                        SaveReplyEmailToDatabase(_senderEmail, _receiverEmail, _senderEmail, _attachmentPath, _emailSubject, _emailContentPath, _replyMailId);
+
+
+
+                        SaveContentMail(_receiverEmail, _emailContent, identify);
+                        // no need to set the 'Reply' field because this is a received message, not a reply
+                        SaveEmailToDatabase(_senderEmail, _receiverEmail, _receiverEmail, _attachmentPath, _emailSubject, _emailContentPath);
+                        return CreateJsonResponse("OK", "Reply mail successfully", identify);
+                    }
+                
+
+            }
+            catch (Exception ex)
+            {
+                Log($"Error in HandleDataCommand: {ex.Message}");
+                return CreateJsonResponse("BAD", $"Error processing DATA command: {ex.Message}");
+            }
         }
+
 
         // Handle ATTACH Command
         private string HandleAttach(Dictionary<string, string> command)
         {
-            if (!command.ContainsKey("FilePath"))
-                return "500 Missing 'FilePath' in ATTACH command";
+            if (!command.ContainsKey("Filename"))
+                return CreateJsonResponse("BAD", "Missing 'Filename' in ATTACH command");
 
-              _attachmentPath = command["FilePath"];
+            _attachmentPath = command["Filename"];
            
-                return "250 File attached successfully";
+                return CreateJsonResponse("OK", "Attachment accepted");
         }
 
         // Handle QUIT Command
         private string HandleQuit()
         {
 
-            if (_isForwardMail)
-            {
-
-                SaveForwardMail(_forwardMailId, _forwardFrom, _forwardTo);
-                Log("Mail forwarded successfully");
-            }
-
-
-            if (data)
-            {
-                SaveContentMail(_senderEmail, _emailContent);
-                SaveEmailToDatabase(_senderEmail, _receiverEmail, _senderEmail, _attachmentPath, _emailSubject, _emailContentPath,_replyMailId);
-
-                SaveContentMail(_receiverEmail, _emailContent);
-                SaveEmailToDatabase(_senderEmail, _receiverEmail, _receiverEmail, _attachmentPath, _emailSubject, _emailContentPath, _replyMailId);
-            }
-
-
-            return "221 Goodbye";
+            return CreateJsonResponse("221", "Bye");
         }
 
-        // Save email to the database
-        private void SaveEmailToDatabase(string senderEmail, string receiverEmail, string owner, string attachmentPath,string emailSubject, string emailContentPath, int reply)
+        private void SaveEmailToDatabase(string senderEmail, string receiverEmail, string owner, string attachmentPath, string emailSubject, string emailContentPath)
         {
             try
             {
@@ -261,12 +295,18 @@ namespace BLL
                         Subject = emailSubject,
                         Content = emailContentPath,
                         DeletedAt = null,
-                        Reply = reply
+                        Reply = null                  // So reply is null
                     };
-                    _mailDAL.InsertMail(mail);
-                    Log($"Email saved to database successfully with subject: {_emailSubject}");
-                
+                    bool isInserted = _mailDAL.InsertMail(mail);
 
+                if (isInserted)
+                {
+                    Log($"Email saved to database successfully with subject: {mail.Subject}");
+                }
+                else
+                {
+                    Log("Failed to save email to database.");
+                }
             }
             catch (Exception ex)
             {
@@ -274,7 +314,49 @@ namespace BLL
             }
         }
 
-        private void SaveForwardMail(int mailId, string forwardFrom, string forwardTo)
+
+
+        private void SaveReplyEmailToDatabase(string senderEmail, string receiverEmail, string owner, string attachmentPath, string emailSubject, string emailContentPath, int reply)
+        {
+            try
+            {
+                   Mail mail = new()
+                    {
+                        CreatedAt = DateTime.Now,
+                        Sender = senderEmail,
+                        Receiver = receiverEmail,
+                        Owner = owner,
+                        IsRead = false,
+                        Attachment = attachmentPath,
+                        Subject = emailSubject,
+                        Content = emailContentPath,
+                        DeletedAt = null,
+                        Reply = reply                   // Set the reply mail id here
+                    };
+
+                bool isInserted = _mailDAL.InsertReplyMail(mail);
+
+                if (isInserted)
+                {
+                    Log($"Reply Email saved to database successfully with subject: {mail.Subject}");
+                }
+                else
+                {
+                    Log("Failed to save email to database.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"Error saving email to database: {ex.Message}");
+            }
+        }
+
+
+
+
+
+
+        private void SaveForwardMail(int mailId, string forwardFrom, string forwardTo, string identify)
         {
             try
             {
@@ -323,14 +405,14 @@ namespace BLL
                 //}
 
                 // Save forwarded content and email for 'forwardFrom'
-                SaveContentMail(forwardFrom, forwardContent);
-                SaveEmailToDatabase(forwardFrom, forwardTo, forwardFrom, forwardAttachmentPath, originalMail.Subject, _emailContentPath, _replyMailId);
+                SaveContentMail(forwardFrom, forwardContent, identify);
+                SaveEmailToDatabase(forwardFrom, forwardTo, forwardFrom, forwardAttachmentPath, originalMail.Subject, _emailContentPath);
 
                 // Save forwarded content and email for 'forwardTo'
-                SaveContentMail(forwardTo, forwardContent);
-                SaveEmailToDatabase(forwardFrom, forwardTo, forwardTo, forwardAttachmentPath, originalMail.Subject, _emailContentPath, _replyMailId);
+                SaveContentMail(forwardTo, forwardContent, identify);
+                SaveEmailToDatabase(forwardFrom, forwardTo, forwardTo, forwardAttachmentPath, originalMail.Subject, _emailContentPath);
 
-                Log($"Forwarded mail saved successfully for mail ID: {mailId}");
+                Log($"{identify}: Forwarded mail saved successfully for mail ID: {mailId}");
             }
             catch (Exception ex)
             {
@@ -342,20 +424,22 @@ namespace BLL
 
 
         //Save content mail 
-        private void SaveContentMail(string email, string content)
+        private void SaveContentMail(string email, string content, string identify)
         {
             try
             {
+               
+                string accountDir = _baseDir + email.Replace(_defaultDomain, "") + "/" + identify + "/";   // such as D:\MailBox\trungnd.21it\20241202_230409
 
-                string accountDir = _baseDir + email.Replace(_defaultDomain, "") + "/";
-                string fileName = DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".txt";
-
+                // string file name = parent folder name
+                string fileName = identify + ".txt";
 
                 if (!Directory.Exists(accountDir))
                     Directory.CreateDirectory(accountDir);
 
                 File.WriteAllText(accountDir + fileName, content);
                 _emailContentPath = accountDir + fileName;
+                Log($"{identify}: Content mail saved successfully");
             }
             catch (Exception ex)
             {
@@ -363,6 +447,19 @@ namespace BLL
             }
         }
 
+        private string CreateJsonResponse(string status, string messagel)
+        {
+            ServerResponse serverResponse = new ServerResponse(status, messagel);
+            return serverResponse.ToJson();
+
+        }
+
+        private string CreateJsonResponse(string status, string message, string identify)
+        {
+            ServerResponse serverResponse = new ServerResponse(status, message, identify);
+            return serverResponse.ToJson();
+
+        }
 
 
         // Validate email format

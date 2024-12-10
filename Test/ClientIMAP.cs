@@ -109,7 +109,7 @@ namespace Test
                 var fetchCommand = new
                 {
                     Command = "FETCH",
-                    Mailid = 231
+                    Mailid = 306
                 };
                 writer.WriteLine(JsonConvert.SerializeObject(fetchCommand));
 

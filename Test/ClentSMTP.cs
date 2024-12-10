@@ -56,7 +56,7 @@
 //                var dataCommand = new
 //                {
 //                    Command = "DATA",
-//                    Subject = "Welcome",
+//                    Subject = "VAN SENT TRUNG",
 //                    Content = "Van sent mail"
 //                };
 //                writer.WriteLine(JsonConvert.SerializeObject(dataCommand));
