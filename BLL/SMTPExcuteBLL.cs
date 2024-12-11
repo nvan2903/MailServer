@@ -83,16 +83,16 @@ namespace BLL
         private string ProcessCommand(string command)
         {
             if (string.IsNullOrWhiteSpace(command))
-                return CreateJsonResponse("BAD", "Syntax error, command unrecognized");
+                return CreateJsonResponse("NO", "Syntax error, command unrecognized");
 
             try
             {
                 if (!command.TrimStart().StartsWith("{"))
-                    return CreateJsonResponse("BAD", "Invalid JSON format");
+                    return CreateJsonResponse("NO", "Invalid JSON format");
 
                 var jsonCommand = JsonConvert.DeserializeObject<Dictionary<string, string>>(command);
                 if (jsonCommand == null || !jsonCommand.ContainsKey("Command"))
-                    return CreateJsonResponse("BAD", "Invalid JSON format: Missing 'Command' key");
+                    return CreateJsonResponse("NO", "Invalid JSON format: Missing 'Command' key");
 
                 string cmd = jsonCommand["Command"].ToUpper();
 
@@ -108,12 +108,12 @@ namespace BLL
                     "DATA" => HandleDataCommand(jsonCommand),
                     "ATTACH" => HandleAttach(jsonCommand),
                     "QUIT" => HandleQuit(),
-                    _ => CreateJsonResponse("BAD", "Command unrecognized")
+                    _ => CreateJsonResponse("NO", "Command unrecognized")
                 };
             }
             catch (JsonException ex)
             {
-                return CreateJsonResponse("BAD", $"Error processing command: {ex.Message}");
+                return CreateJsonResponse("NO", $"Error processing command: {ex.Message}");
             }
         }
 
@@ -127,11 +127,11 @@ namespace BLL
         private string HandleMailFrom(Dictionary<string, string> command)
         {
             if (!command.ContainsKey("Email"))
-                return CreateJsonResponse("BAD", "Missing 'Email' in MAIL FROM command");
+                return CreateJsonResponse("NO", "Missing 'Email' in MAIL FROM command");
 
             _senderEmail = command["Email"];
             if (!IsValidEmail(_senderEmail))
-                return CreateJsonResponse("BAD", "Invalid sender email address");
+                return CreateJsonResponse("NO", "Invalid sender email address");
 
             return CreateJsonResponse("OK", "Sender email address accepted");
         }
@@ -140,11 +140,11 @@ namespace BLL
         private string HandleRcptTo(Dictionary<string, string> command)
         {
             if (!command.ContainsKey("Email"))
-                return CreateJsonResponse("BAD", "Missing 'Email' in RCPT TO command");
+                return CreateJsonResponse("NO", "Missing 'Email' in RCPT TO command");
 
             _receiverEmail = command["Email"];
             if (!IsValidEmail(_receiverEmail))
-                return CreateJsonResponse("BAD", "Invalid receiver email address");
+                return CreateJsonResponse("NO", "Invalid receiver email address");
 
             return CreateJsonResponse("OK", "Receiver email address accepted");
         }
@@ -153,11 +153,11 @@ namespace BLL
         private string HandleForwardFrom(Dictionary<string, string> command)
         {
             if (!command.ContainsKey("Email"))
-                return CreateJsonResponse("BAD", "Missing 'Email' in FORWARD FROM command");
+                return CreateJsonResponse("NO", "Missing 'Email' in FORWARD FROM command");
 
             _forwardFrom = command["Email"];
             if (!IsValidEmail(_forwardFrom))
-                return CreateJsonResponse("BAD", "Invalid forward from email address");
+                return CreateJsonResponse("NO", "Invalid forward from email address");
 
             return CreateJsonResponse("OK", "Forward from email address accepted");
         }
@@ -166,11 +166,11 @@ namespace BLL
         private string HandleForwardTo(Dictionary<string, string> command)
         {
             if (!command.ContainsKey("Email"))
-                return CreateJsonResponse("BAD", "Missing 'Email' in FORWARD TO command");
+                return CreateJsonResponse("NO", "Missing 'Email' in FORWARD TO command");
 
             _forwardTo = command["Email"];
             if (!IsValidEmail(_forwardTo))
-                return CreateJsonResponse("BAD", "Invalid forward to email address");
+                return CreateJsonResponse("NO", "Invalid forward to email address");
 
             return CreateJsonResponse("OK", "Forward to email address accepted");
         }
@@ -179,7 +179,7 @@ namespace BLL
         private string HandleMailForward(Dictionary<string, string> command)
         {
             if (!command.ContainsKey("Mailid"))
-                return CreateJsonResponse("BAD", "Missing 'Mailid' in MAIL FORWARD command");
+                return CreateJsonResponse("NO", "Missing 'Mailid' in MAIL FORWARD command");
 
             _forwardMailId = int.Parse(command["Mailid"]);
             _isForwardMail = true;
@@ -194,7 +194,7 @@ namespace BLL
             catch (Exception ex)
             {
                 Log($"Error in HandleMailForward: {ex.Message}");
-                return CreateJsonResponse("BAD", $"Error forwarding mail: {ex.Message}");
+                return CreateJsonResponse("NO", $"Error forwarding mail: {ex.Message}");
             }
         }
 
@@ -202,7 +202,7 @@ namespace BLL
         private string HandleReply(Dictionary<string, string> command)
         {
             if (!command.ContainsKey("Mailid"))
-                return CreateJsonResponse("BAD", "Missing 'Mailid' in REPLY command");
+                return CreateJsonResponse("NO", "Missing 'Mailid' in REPLY command");
 
             _replyMailId = int.Parse(command["Mailid"]);
 
@@ -216,7 +216,7 @@ namespace BLL
             {
                 if (!command.ContainsKey("Subject") || !command.ContainsKey("Content"))
                 {
-                    return CreateJsonResponse("BAD", "Missing 'Subject' or 'Content' in DATA command");
+                    return CreateJsonResponse("NO", "Missing 'Subject' or 'Content' in DATA command");
                 }
 
                 _emailSubject = command["Subject"];
@@ -257,7 +257,7 @@ namespace BLL
             catch (Exception ex)
             {
                 Log($"Error in HandleDataCommand: {ex.Message}");
-                return CreateJsonResponse("BAD", $"Error processing DATA command: {ex.Message}");
+                return CreateJsonResponse("NO", $"Error processing DATA command: {ex.Message}");
             }
         }
 
@@ -266,7 +266,7 @@ namespace BLL
         private string HandleAttach(Dictionary<string, string> command)
         {
             if (!command.ContainsKey("Filename"))
-                return CreateJsonResponse("BAD", "Missing 'Filename' in ATTACH command");
+                return CreateJsonResponse("NO", "Missing 'Filename' in ATTACH command");
 
             _attachmentPath = command["Filename"];
            

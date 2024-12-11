@@ -1,0 +1,16 @@
+D:\Source-CSharp\MailServer\DAL\bin\Release\net8.0\DAL.deps.json
+D:\Source-CSharp\MailServer\DAL\bin\Release\net8.0\DAL.dll
+D:\Source-CSharp\MailServer\DAL\bin\Release\net8.0\DAL.pdb
+D:\Source-CSharp\MailServer\DAL\bin\Release\net8.0\DTO.dll
+D:\Source-CSharp\MailServer\DAL\bin\Release\net8.0\DTO.pdb
+D:\Source-CSharp\MailServer\DAL\obj\Release\net8.0\DAL.csproj.AssemblyReference.cache
+D:\Source-CSharp\MailServer\DAL\obj\Release\net8.0\DAL.GeneratedMSBuildEditorConfig.editorconfig
+D:\Source-CSharp\MailServer\DAL\obj\Release\net8.0\DAL.AssemblyInfoInputs.cache
+D:\Source-CSharp\MailServer\DAL\obj\Release\net8.0\DAL.AssemblyInfo.cs
+D:\Source-CSharp\MailServer\DAL\obj\Release\net8.0\DAL.csproj.CoreCompileInputs.cache
+D:\Source-CSharp\MailServer\DAL\obj\Release\net8.0\DAL.sourcelink.json
+D:\Source-CSharp\MailServer\DAL\obj\Release\net8.0\DAL.csproj.Up2Date
+D:\Source-CSharp\MailServer\DAL\obj\Release\net8.0\DAL.dll
+D:\Source-CSharp\MailServer\DAL\obj\Release\net8.0\refint\DAL.dll
+D:\Source-CSharp\MailServer\DAL\obj\Release\net8.0\DAL.pdb
+D:\Source-CSharp\MailServer\DAL\obj\Release\net8.0\ref\DAL.dll

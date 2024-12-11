@@ -7,9 +7,9 @@ namespace DTO
         public int Id { get; set; }
         public DateTime CreatedAt { get; set; }
         public string Sender { get; set; }
-        public string SenderName { get; set; }
+        //public string SenderName { get; set; }
         public string Receiver { get; set; }
-        public string ReceiverName { get; set; }
+        //public string ReceiverName { get; set; }
         public int? Reply { get; set; }
         public string Owner { get; set; }
         public bool IsRead { get; set; }
@@ -24,9 +24,9 @@ namespace DTO
             Id = 0;
             CreatedAt = DateTime.Now;
             Sender = string.Empty;
-            SenderName = string.Empty;
+            //SenderName = string.Empty;
             Receiver = string.Empty;
-            ReceiverName = string.Empty;
+            //ReceiverName = string.Empty;
             Reply = 0;
             Owner = string.Empty;
             IsRead = false;
