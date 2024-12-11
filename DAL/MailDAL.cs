@@ -209,7 +209,7 @@ namespace DAL
         // method to get inbox mails
         public DataTable GetInboxMails(string currentUser)
         {
-            string sql = "SELECT id, created_at, sender, receiver, is_read, attachment, subject, content, reply FROM mail WHERE receiver = @CurrentUser AND deleted_at IS NULL";
+            string sql = "SELECT id, created_at, sender, receiver, is_read, attachment, subject, content, reply FROM mail WHERE owner = @CurrentUser AND deleted_at IS NULL";
             try
             {
                 using (SqlCommand cmd = new SqlCommand(sql, conn))

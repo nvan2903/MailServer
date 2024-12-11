@@ -46,9 +46,10 @@ namespace BLL
 
                     Log("Connection established.");
                     Log("* OK IMAP Server Ready");
-                    string line = reader.ReadLine();
-                    while (line != null)
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
                     {
+                        line = RemoveBOM(line); // Loại bỏ BOM trước khi xử lý
                         Log($"Client: {line}");
                         string response = ProcessCommand(line);
                         writer.WriteLine(response);
@@ -67,6 +68,11 @@ namespace BLL
                     Log("Connection closed.");
                 }
             }
+        }
+
+        private string RemoveBOM(string input)
+        {
+            return input.TrimStart('\uFEFF'); // Loại bỏ BOM từ đầu chuỗi
         }
 
 
